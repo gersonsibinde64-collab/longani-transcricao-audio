@@ -37,26 +37,26 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-light text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground mt-2 font-light">
           Bem-vindo de volta! Aqui está um resumo das suas transcrições.
         </p>
       </div>
 
       {/* Quick Actions */}
       <div className="flex gap-4">
-        <Button asChild className="bg-primary hover:bg-primary/90">
+        <Button asChild className="bg-primary hover:bg-primary/90 font-light">
           <Link to="/nova-transcricao">
-            <Upload className="w-4 h-4 mr-2" />
+            <Upload className="w-4 h-4 mr-2" strokeWidth={1.5} />
             Nova Transcrição
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="font-light">
           <Link to="/transcricoes">
-            <FileText className="w-4 h-4 mr-2" />
+            <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
             Ver Todas
           </Link>
         </Button>
@@ -65,23 +65,23 @@ export function Dashboard() {
       {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => (
-          <Card key={index} className="bg-card border-border shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-card-foreground">
+          <Card key={index} className="bg-white border-border shadow-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-light text-card-foreground">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="h-5 w-5 text-muted-foreground" />
+              <stat.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-light text-foreground mb-1">{stat.value}</div>
+              <p className="text-xs text-muted-foreground font-light mb-2">
                 {stat.description}
               </p>
-              <div className="flex items-center mt-2">
-                <span className="text-xs text-green-600 font-medium">
+              <div className="flex items-center">
+                <span className="text-xs text-green-600 font-light">
                   {stat.trend}
                 </span>
-                <span className="text-xs text-muted-foreground ml-1">
+                <span className="text-xs text-muted-foreground ml-1 font-light">
                   vs mês passado
                 </span>
               </div>
@@ -91,12 +91,12 @@ export function Dashboard() {
       </div>
 
       {/* Recent Transcriptions */}
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white border-border shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-card-foreground">
+          <CardTitle className="text-lg font-normal text-card-foreground">
             Transcrições Recentes
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="font-light">
             Suas últimas transcrições de áudio
           </CardDescription>
         </CardHeader>
@@ -107,21 +107,21 @@ export function Dashboard() {
               { name: "Entrevista Cliente", duration: "22 min", status: "Processando" },
               { name: "Palestra Marketing", duration: "1h 15min", status: "Concluída" }
             ].map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-primary" />
+              <div key={index} className="flex items-center justify-between p-5 border border-border rounded-lg bg-white">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-primary" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">{item.duration}</p>
+                    <p className="font-normal text-foreground">{item.name}</p>
+                    <p className="text-sm text-muted-foreground font-light">{item.duration}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-light ${
                     item.status === 'Concluída' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-yellow-100 text-yellow-700'
+                      ? 'bg-green-50 text-green-700' 
+                      : 'bg-yellow-50 text-yellow-700'
                   }`}>
                     {item.status}
                   </span>

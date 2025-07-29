@@ -74,27 +74,27 @@ export function NovaTranscricao() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-8 max-w-2xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-semibold text-foreground">Nova Transcrição</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-light text-foreground">Nova Transcrição</h1>
+        <p className="text-muted-foreground mt-2 font-light">
           Faça upload do seu arquivo de áudio para iniciar a transcrição
         </p>
       </div>
 
       {/* Upload Area */}
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white border-border shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg text-card-foreground">Upload de Áudio</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg font-normal text-card-foreground">Upload de Áudio</CardTitle>
+          <CardDescription className="font-light">
             Suporte para arquivos MP3, WAV e M4A (máximo 100MB)
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!selectedFile ? (
             <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
                 isDragging 
                   ? 'border-primary bg-primary/5' 
                   : 'border-border hover:border-primary/50'
@@ -103,16 +103,16 @@ export function NovaTranscricao() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                <Upload className="w-6 h-6 text-primary" />
+              <div className="mx-auto w-12 h-12 bg-accent rounded-lg flex items-center justify-center mb-6">
+                <Upload className="w-6 h-6 text-primary" strokeWidth={1.5} />
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">
+              <h3 className="text-lg font-normal text-foreground mb-2">
                 Arraste e solte seu arquivo aqui
               </h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-6 font-light">
                 ou clique para selecionar um arquivo
               </p>
-              <Button variant="outline" className="relative">
+              <Button variant="outline" className="relative font-light">
                 <input
                   type="file"
                   accept=".mp3,.wav,.m4a,audio/*"
@@ -126,19 +126,19 @@ export function NovaTranscricao() {
               </Button>
             </div>
           ) : (
-            <div className="border border-border rounded-lg p-4 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <FileAudio className="w-5 h-5 text-primary" />
+            <div className="border border-border rounded-lg p-5 bg-accent">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                  <FileAudio className="w-5 h-5 text-primary" strokeWidth={1.5} />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">{selectedFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-normal text-foreground">{selectedFile.name}</p>
+                  <p className="text-sm text-muted-foreground font-light">
                     {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={removeFile}>
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4" strokeWidth={1.5} />
                 </Button>
               </div>
             </div>
@@ -148,29 +148,29 @@ export function NovaTranscricao() {
 
       {/* Settings */}
       {selectedFile && (
-        <Card className="bg-card border-border shadow-sm">
+        <Card className="bg-white border-border shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg text-card-foreground">Configurações</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg font-normal text-card-foreground">Configurações</CardTitle>
+            <CardDescription className="font-light">
               Personalize sua transcrição
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Título da Transcrição</Label>
+              <Label htmlFor="title" className="font-light">Título da Transcrição</Label>
               <Input
                 id="title"
                 placeholder="Digite um título para sua transcrição"
                 defaultValue={selectedFile.name.replace(/\.[^/.]+$/, "")}
-                className="bg-background"
+                className="bg-white font-light"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="language">Idioma</Label>
+              <Label htmlFor="language" className="font-light">Idioma</Label>
               <select
                 id="language"
-                className="w-full h-10 px-3 bg-background border border-input rounded-md text-sm"
+                className="w-full h-10 px-3 bg-white border border-input rounded-md text-sm font-light"
                 defaultValue="pt-BR"
               >
                 <option value="pt-BR">Português (Brasil)</option>
@@ -184,11 +184,11 @@ export function NovaTranscricao() {
       {selectedFile && (
         <div className="flex justify-center">
           <Button 
-            className="bg-primary hover:bg-primary/90 px-8"
+            className="bg-primary hover:bg-primary/90 px-8 font-light"
             size="lg"
             onClick={startTranscription}
           >
-            <Upload className="w-4 h-4 mr-2" />
+            <Upload className="w-4 h-4 mr-2" strokeWidth={1.5} />
             Iniciar Transcrição
           </Button>
         </div>

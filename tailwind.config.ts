@@ -22,6 +22,12 @@ export default {
 			fontFamily: {
 				'inter': ['Inter', 'sans-serif'],
 			},
+			fontWeight: {
+				'light': '300',
+				'normal': '400',
+				'medium': '500',
+				'semibold': '600',
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -71,6 +77,10 @@ export default {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+				'card-lg': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
 			},
 			keyframes: {
 				'accordion-down': {

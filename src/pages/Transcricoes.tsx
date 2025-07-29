@@ -50,17 +50,17 @@ export function Transcricoes() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">Transcrições</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl font-light text-foreground">Transcrições</h1>
+          <p className="text-muted-foreground mt-2 font-light">
             Gerencie todas as suas transcrições de áudio
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <FileText className="w-4 h-4 mr-2" />
+        <Button className="bg-primary hover:bg-primary/90 font-light">
+          <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
           Nova Transcrição
         </Button>
       </div>
@@ -68,18 +68,18 @@ export function Transcricoes() {
       {/* Transcriptions Grid */}
       <div className="grid gap-6">
         {transcriptions.map((transcription) => (
-          <Card key={transcription.id} className="bg-card border-border shadow-sm hover:shadow-md transition-shadow">
+          <Card key={transcription.id} className="bg-white border-border shadow-card hover:shadow-card-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary" />
+                  <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg text-card-foreground">
+                    <CardTitle className="text-lg font-normal text-card-foreground">
                       {transcription.title}
                     </CardTitle>
-                    <CardDescription className="mt-1">
+                    <CardDescription className="mt-1 font-light">
                       {transcription.date} • {transcription.duration}
                     </CardDescription>
                   </div>
@@ -88,20 +88,20 @@ export function Transcricoes() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
-                      <MoreVertical className="w-4 h-4" />
+                      <MoreVertical className="w-4 h-4" strokeWidth={1.5} />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem>
-                      <Play className="w-4 h-4 mr-2" />
+                  <DropdownMenuContent align="end" className="bg-white shadow-card-lg">
+                    <DropdownMenuItem className="font-light">
+                      <Play className="w-4 h-4 mr-2" strokeWidth={1.5} />
                       Reproduzir
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem className="font-light">
+                      <Download className="w-4 h-4 mr-2" strokeWidth={1.5} />
                       Baixar
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <FileText className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem className="font-light">
+                      <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
                       Editar
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -111,34 +111,34 @@ export function Transcricoes() {
             
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="flex gap-6">
+                <div className="flex gap-8">
                   <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                    <p className="text-sm text-muted-foreground font-light">Status</p>
+                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-light ${
                       transcription.status === 'Concluída' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
+                        ? 'bg-green-50 text-green-700' 
+                        : 'bg-yellow-50 text-yellow-700'
                     }`}>
                       {transcription.status}
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Precisão</p>
-                    <p className="font-medium text-foreground">{transcription.accuracy}</p>
+                    <p className="text-sm text-muted-foreground font-light">Precisão</p>
+                    <p className="font-light text-foreground">{transcription.accuracy}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Palavras</p>
-                    <p className="font-medium text-foreground">{transcription.wordCount.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground font-light">Palavras</p>
+                    <p className="font-light text-foreground">{transcription.wordCount.toLocaleString()}</p>
                   </div>
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Play className="w-4 h-4 mr-2" />
+                  <Button variant="outline" size="sm" className="font-light">
+                    <Play className="w-4 h-4 mr-2" strokeWidth={1.5} />
                     Reproduzir
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
+                  <Button variant="outline" size="sm" className="font-light">
+                    <Download className="w-4 h-4 mr-2" strokeWidth={1.5} />
                     Baixar
                   </Button>
                 </div>
