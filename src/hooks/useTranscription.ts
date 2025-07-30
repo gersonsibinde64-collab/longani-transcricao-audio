@@ -63,9 +63,19 @@ export const useTranscription = () => {
   };
 
   const updateTranscriptionRecord = async (id: string, updates: Partial<TranscriptionResult>) => {
+    // Map camelCase properties to snake_case for database
+    const dbUpdates: any = {};
+    
+    if (updates.status) dbUpdates.status = updates.status;
+    if (updates.transcribedText) dbUpdates.transcribed_text = updates.transcribedText;
+    if (updates.accuracyScore) dbUpdates.accuracy_score = updates.accuracyScore;
+    if (updates.wordCount) dbUpdates.word_count = updates.wordCount;
+    if (updates.durationSeconds) dbUpdates.duration_seconds = updates.durationSeconds;
+    if (updates.errorMessage) dbUpdates.error_message = updates.errorMessage;
+
     const { error } = await supabase
       .from('transcriptions')
-      .update(updates)
+      .update(dbUpdates)
       .eq('id', id);
 
     if (error) {
@@ -187,9 +197,9 @@ export const useTranscription = () => {
             await updateTranscriptionRecord(transcriptionRecord.id, {
               status: 'completed',
               transcribedText: finalTranscript,
-              accuracy_score: result.accuracyScore,
-              word_count: wordCount,
-              duration_seconds: Math.floor(duration)
+              accuracyScore: result.accuracyScore,
+              wordCount: wordCount,
+              durationSeconds: Math.floor(duration)
             });
 
             toast({
