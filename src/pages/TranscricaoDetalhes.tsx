@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +25,11 @@ export function TranscricaoDetalhes() {
   };
 
   const handleWordClick = (time: number) => {
+    setCurrentTime(time);
+    // The audio player will sync to this time automatically
+  };
+
+  const handleTimestampClick = (time: number) => {
     setCurrentTime(time);
     // The audio player will sync to this time automatically
   };
@@ -189,11 +193,13 @@ export function TranscricaoDetalhes() {
         />
       )}
 
-      {/* Transcription Text */}
+      {/* Rich Text Editor / Transcription Text */}
       <TranscriptionText
         text={transcription.transcribed_text}
+        transcriptionId={transcription.id}
         currentTime={currentTime}
         onWordClick={handleWordClick}
+        onTimestampClick={handleTimestampClick}
       />
     </div>
   );
