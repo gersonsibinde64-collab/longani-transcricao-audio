@@ -72,11 +72,7 @@ const Index = () => {
     // Auto-start transcription if not muted by default
     if (!preferences.muteByDefault) {
       try {
-        const transcribeMethod = shouldUseChunked(file) 
-          ? chunkedTranscription.transcribeAudioChunked 
-          : hybridTranscription.transcribeAudio;
-
-        const result = await transcribeMethod(file, {
+        const result = await activeTranscription.transcribeAudio(file, {
           language: 'pt-BR',
           continuous: true,
           interimResults: true
@@ -86,17 +82,13 @@ const Index = () => {
         console.error('Auto-transcription error:', error);
       }
     }
-  }, [toast, preferences.muteByDefault, activeTranscription, shouldUseChunked, chunkedTranscription, hybridTranscription]);
+  }, [toast, preferences.muteByDefault, activeTranscription, shouldUseChunked]);
 
   const handleManualTranscription = useCallback(async () => {
     if (!selectedFile) return;
 
     try {
-      const transcribeMethod = shouldUseChunked(selectedFile) 
-        ? chunkedTranscription.transcribeAudioChunked 
-        : hybridTranscription.transcribeAudio;
-
-      const result = await transcribeMethod(selectedFile, {
+      const result = await activeTranscription.transcribeAudio(selectedFile, {
         language: 'pt-BR',
         continuous: true,
         interimResults: true
@@ -105,7 +97,7 @@ const Index = () => {
     } catch (error) {
       console.error('Manual transcription error:', error);
     }
-  }, [selectedFile, shouldUseChunked, chunkedTranscription, hybridTranscription]);
+  }, [selectedFile, activeTranscription]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -163,7 +155,7 @@ const Index = () => {
     activeTranscription.clearTranscript();
   }, [audioUrl, activeTranscription]);
 
-  if (!activeTranscription.isWebSpeechSupported && !activeTranscription.isWebSpeechSupported()) {
+  if (!activeTranscription.isWebSpeechSupported()) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md">

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { TranscriptionConfig, TranscriptionResult } from './useTranscription';
@@ -13,13 +12,19 @@ const CHUNK_DURATION = 30; // 30 seconds
 const OVERLAP_DURATION = 2; // 2 seconds overlap
 
 export const useChunkedTranscription = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [chunkProgress, setChunkProgress] = useState<ChunkProgress | null>(null);
   const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
   
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const isWebSpeechSupported = useCallback(() => {
+    return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  }, []);
 
   const createAudioChunks = useCallback(async (file: File): Promise<Blob[]> => {
     const audioContext = new AudioContext();
@@ -125,9 +130,11 @@ export const useChunkedTranscription = () => {
     file: File,
     config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true }
   ): Promise<TranscriptionResult> => {
-    setIsProcessing(true);
+    setIsTranscribing(true);
     setTranscript('');
+    setInterimTranscript('');
     setError(null);
+    setProgress(0);
     abortControllerRef.current = new AbortController();
 
     try {
@@ -152,6 +159,7 @@ export const useChunkedTranscription = () => {
         }
 
         setChunkProgress({ currentChunk: i + 1, totalChunks, chunkProgress: 0 });
+        setProgress(Math.round((i / totalChunks) * 100));
 
         try {
           const chunkText = await transcribeChunk(chunks[i], i, config);
@@ -184,6 +192,7 @@ export const useChunkedTranscription = () => {
         setChunkProgress({ currentChunk: i + 1, totalChunks, chunkProgress: 100 });
       }
 
+      setProgress(100);
       const processingTime = (Date.now() - startTime) / 1000;
       const wordCount = finalTranscript ? finalTranscript.split(/\s+/).filter(word => word.length > 0).length : 0;
 
@@ -211,8 +220,9 @@ export const useChunkedTranscription = () => {
       setError(error instanceof Error ? error.message : 'Erro no processamento chunked');
       throw error;
     } finally {
-      setIsProcessing(false);
+      setIsTranscribing(false);
       setChunkProgress(null);
+      setProgress(0);
       abortControllerRef.current = null;
     }
   }, [createAudioChunks, transcribeChunk, toast]);
@@ -221,24 +231,39 @@ export const useChunkedTranscription = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    setIsProcessing(false);
+    setIsTranscribing(false);
+    setProgress(0);
     setChunkProgress(null);
   }, []);
 
   const clearTranscript = useCallback(() => {
     setTranscript('');
+    setInterimTranscript('');
     setError(null);
+    setProgress(0);
     setChunkProgress(null);
   }, []);
 
+  // Create a transcribe method that matches the expected interface
+  const transcribeAudio = useCallback(async (
+    file: File,
+    config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true }
+  ): Promise<TranscriptionResult> => {
+    return transcribeAudioChunked(file, config);
+  }, [transcribeAudioChunked]);
+
   return {
-    isProcessing,
-    chunkProgress,
+    isTranscribing,
     transcript,
+    interimTranscript,
     error,
+    progress,
+    chunkProgress,
+    transcribeAudio,
     transcribeAudioChunked,
     stopTranscription,
     clearTranscript,
+    isWebSpeechSupported,
   };
 };
 
