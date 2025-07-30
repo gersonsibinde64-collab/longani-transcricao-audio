@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Download, Loader2, FileAudio, RotateCcw, AlertTriangle, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIntelligentTranscription } from "@/hooks/useIntelligentTranscription";
@@ -24,10 +22,10 @@ const Index = () => {
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
   
-  // Transcription settings
-  const [language, setLanguage] = useState<'pt-PT' | 'pt-MZ'>('pt-PT');
-  const [useIntelligent, setUseIntelligent] = useState(true);
-  const [autoStructure, setAutoStructure] = useState(true);
+  // Fixed transcription settings - basic Portuguese European
+  const language = 'pt-PT';
+  const useIntelligent = false;
+  const autoStructure = false;
   
   const { toast } = useToast();
   const intelligentTranscription = useIntelligentTranscription();
@@ -291,51 +289,6 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Settings Panel */}
-              <Card className="mb-8">
-                <CardContent className="p-6 space-y-6">
-                  {/* Language Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Idioma da transcrição</label>
-                    <Select value={language} onValueChange={(value: 'pt-PT' | 'pt-MZ') => setLanguage(value)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pt-PT">🇵🇹 Português Europeu</SelectItem>
-                        <SelectItem value="pt-MZ">🇲🇿 Português Moçambicano</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Quality Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Tipo de transcrição</label>
-                    <Select value={useIntelligent ? 'intelligent' : 'basic'} 
-                            onValueChange={(value) => setUseIntelligent(value === 'intelligent')}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="intelligent">✨ Transcrição Inteligente</SelectItem>
-                        <SelectItem value="basic">📝 Transcrição Básica</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Format Options */}
-                  {useIntelligent && (
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="auto-structure" checked={autoStructure} 
-                                onCheckedChange={(checked) => setAutoStructure(checked === true)} />
-                      <label htmlFor="auto-structure" className="text-sm">
-                        Adicionar estrutura automática
-                      </label>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Huge Drop Zone */}
               <div
                 className={`
@@ -387,7 +340,7 @@ const Index = () => {
               </p>
               
               <p className="text-muted-foreground mb-4">
-                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {Math.ceil(audioDuration / 60)}min • {language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}
+                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {Math.ceil(audioDuration / 60)}min • Português Europeu
               </p>
 
               {needsSplitting && (
@@ -472,7 +425,7 @@ const Index = () => {
                 <p className="text-muted-foreground font-light">
                   {needsSplitting 
                     ? `${transcriptionResults.length} partes processadas e descarregadas`
-                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras • ${language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}`
+                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras • Português Europeu`
                   }
                 </p>
               </div>
