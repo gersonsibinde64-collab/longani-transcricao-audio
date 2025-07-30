@@ -40,23 +40,37 @@ export class LocalTranscriptionService {
 
       console.log('Initializing Whisper model...');
 
-      // Use correct ONNX Community model name
-      this.whisperPipeline = await pipeline(
-        'automatic-speech-recognition',
-        'onnx-community/whisper-tiny',
-        {
-          // Use CPU for stability - WebGPU can cause issues
-          device: 'cpu',
-          dtype: 'fp32'
-        }
-      );
-
-      console.log('Whisper model loaded successfully');
+      // Use WASM as fallback since WebGPU might not be available everywhere
+      let device = 'webgpu';
+      try {
+        // Try WebGPU first
+        this.whisperPipeline = await pipeline(
+          'automatic-speech-recognition',
+          'onnx-community/whisper-tiny',
+          {
+            device: 'webgpu',
+            dtype: 'fp16'
+          }
+        );
+        console.log('Whisper model loaded with WebGPU');
+      } catch (webgpuError) {
+        console.log('WebGPU not available, falling back to WASM...');
+        // Fall back to WASM
+        this.whisperPipeline = await pipeline(
+          'automatic-speech-recognition',
+          'onnx-community/whisper-tiny',
+          {
+            device: 'wasm'
+          }
+        );
+        console.log('Whisper model loaded with WASM');
+        device = 'wasm';
+      }
 
       onProgress?.({
         status: 'loading',
         progress: 100,
-        message: 'Modelo carregado com sucesso!'
+        message: `Modelo carregado com sucesso (${device})!`
       });
 
     } catch (error) {
@@ -102,13 +116,11 @@ export class LocalTranscriptionService {
 
       console.log('Running Whisper transcription...');
 
-      // Transcribe using the audio URL
+      // Transcribe using the audio URL with simplified options
       const result = await this.whisperPipeline(audioUrl, {
         language: language === 'pt-PT' ? 'portuguese' : 'portuguese',
         task: 'transcribe',
-        return_timestamps: false,
-        chunk_length_s: 30,
-        stride_length_s: 5
+        return_timestamps: false
       });
 
       // Clean up the object URL
