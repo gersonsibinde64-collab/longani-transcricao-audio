@@ -22,10 +22,10 @@ const Index = () => {
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
   
-  // Fixed transcription settings - basic Portuguese European
+  // Updated transcription settings - now using local Whisper
   const language = 'pt-PT';
-  const useIntelligent = false; // Disable AI processing
-  const autoStructure = false; // Disable AI structuring
+  const useIntelligent = true; // Enable AI processing with local Whisper
+  const autoStructure = true; // Enable AI structuring
   
   const { toast } = useToast();
   const intelligentTranscription = useIntelligentTranscription();
@@ -248,7 +248,7 @@ const Index = () => {
             Navegador não compatível
           </h2>
           <p className="text-muted-foreground font-light">
-            Utilize Chrome, Edge ou Safari para transcrever áudio.
+            Utilize um navegador moderno para transcrever áudio com Whisper.
           </p>
         </div>
       </div>
@@ -281,7 +281,7 @@ const Index = () => {
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <FileText className="w-4 h-4" />
-                  <span>Transcrição Básica • Português Europeu</span>
+                  <span>Whisper AI • Português Europeu • Processamento Local</span>
                 </div>
               </div>
 
@@ -313,7 +313,7 @@ const Index = () => {
                   </p>
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
                     <FileText className="w-4 h-4" />
-                    <span>Transcrição básica • Português Europeu</span>
+                    <span>Whisper AI • Português Europeu • Processamento Local</span>
                   </div>
                   <Button size="lg" className="px-12 py-6 text-lg font-light">
                     <Upload className="w-5 h-5 mr-3" strokeWidth={1.5} />
@@ -344,8 +344,8 @@ const Index = () => {
               </p>
 
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-                <FileText className="w-4 h-4" />
-                <span>Transcrição básica • Português Europeu</span>
+                <Brain className="w-4 h-4" />
+                <span>Whisper AI • Português Europeu • Processamento Local</span>
               </div>
 
               {needsSplitting && (
@@ -376,7 +376,9 @@ const Index = () => {
           {appState === 'processing' && (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
               <div className="w-24 h-24 bg-accent rounded-2xl flex items-center justify-center mb-6">
-                {intelligentTranscription.isProcessingWithAI ? (
+                {intelligentTranscription.isModelLoading ? (
+                  <Download className="w-12 h-12 text-primary animate-pulse" strokeWidth={1.5} />
+                ) : intelligentTranscription.isProcessingWithAI ? (
                   <Brain className="w-12 h-12 text-primary animate-pulse" strokeWidth={1.5} />
                 ) : (
                   <Loader2 className="w-12 h-12 text-primary animate-spin" strokeWidth={1.5} />
@@ -384,11 +386,13 @@ const Index = () => {
               </div>
               
               <h3 className="text-3xl font-light text-foreground mb-4">
-                {intelligentTranscription.isProcessingWithAI 
-                  ? 'Estruturando com IA...' 
-                  : needsSplitting 
-                    ? `Transcrevendo parte ${currentChunk} de ${totalChunks}` 
-                    : 'A transcrever o áudio...'
+                {intelligentTranscription.isModelLoading 
+                  ? 'Descarregando modelo Whisper...' 
+                  : intelligentTranscription.isProcessingWithAI 
+                    ? 'Estruturando com IA...' 
+                    : needsSplitting 
+                      ? `Transcrevendo parte ${currentChunk} de ${totalChunks}` 
+                      : 'A transcrever com Whisper...'
                 }
               </h3>
               
@@ -399,11 +403,20 @@ const Index = () => {
                 </p>
               </div>
 
+              {intelligentTranscription.isModelLoading && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
+                    <Download className="w-4 h-4" />
+                    <span>Primeira utilização: a descarregar modelo Whisper (~150MB)</span>
+                  </div>
+                </div>
+              )}
+
               {intelligentTranscription.isProcessingWithAI && (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
                     <Brain className="w-4 h-4" />
-                    <span>Inteligência artificial estruturando o texto...</span>
+                    <span>Inteligência artificial estruturando o texto transcrito...</span>
                   </div>
                 </div>
               )}
@@ -443,17 +456,17 @@ const Index = () => {
             <div className="flex-1 flex flex-col">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-light text-foreground mb-2">
-                  {needsSplitting ? 'Processamento IA concluído' : 'Transcrição IA concluída'}
+                  {needsSplitting ? 'Processamento Whisper + IA concluído' : 'Transcrição Whisper + IA concluída'}
                 </h3>
                 <p className="text-muted-foreground font-light mb-2">
                   {needsSplitting 
-                    ? `${transcriptionResults.length} partes estruturadas com IA`
-                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras estruturadas`
+                    ? `${transcriptionResults.length} partes transcritas com Whisper e estruturadas com IA`
+                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras transcritas localmente`
                   }
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="w-4 h-4" />
-                  <span>Transcrição básica • Português Europeu</span>
+                  <Brain className="w-4 h-4" />
+                  <span>Whisper AI • Português Europeu • Processamento Local</span>
                 </div>
               </div>
 

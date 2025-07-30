@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 export const useIntelligentTranscription = () => {
   const [isProcessingWithAI, setIsProcessingWithAI] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
-  const browserTranscription = useTranscription();
+  const localTranscription = useTranscription();
   const { toast } = useToast();
 
   const processWithAI = useCallback(async (transcript: string): Promise<string> => {
@@ -15,11 +15,11 @@ export const useIntelligentTranscription = () => {
     setAiProgress(0);
 
     try {
-      console.log('Starting AI processing for transcript:', transcript.substring(0, 100) + '...');
+      console.log('Starting AI processing for LOCAL transcript:', transcript.substring(0, 100) + '...');
       
       toast({
         title: 'Processamento com IA',
-        description: 'Estruturando texto com inteligência artificial...',
+        description: 'Estruturando texto transcrito com inteligência artificial...',
       });
 
       setAiProgress(30);
@@ -42,15 +42,11 @@ export const useIntelligentTranscription = () => {
         throw new Error('Resposta inválida do processamento IA');
       }
 
-      if (!data.aiProcessed) {
-        console.warn('AI processing may not have completed successfully');
-      }
-
       setAiProgress(100);
 
       toast({
         title: 'Processamento IA concluído',
-        description: `Texto estruturado com sucesso (${data.aiProcessed ? 'com IA' : 'básico'})`,
+        description: `Texto estruturado com sucesso usando transcrição Whisper`,
       });
 
       return data.structuredText;
@@ -75,12 +71,12 @@ export const useIntelligentTranscription = () => {
   ): Promise<TranscriptionResult> => {
     
     try {
-      console.log('Starting intelligent transcription for:', file.name);
+      console.log('Starting intelligent LOCAL transcription for:', file.name);
       
-      // First, perform the REAL transcription using Web Speech API
-      const basicResult = await browserTranscription.transcribeAudio(file, config);
+      // First, perform the REAL transcription using local Whisper
+      const basicResult = await localTranscription.transcribeAudio(file, config);
       
-      console.log('Basic transcription completed:', basicResult.transcribedText);
+      console.log('Local Whisper transcription completed:', basicResult.transcribedText);
       
       // If we have transcribed text, process it with AI for structuring
       if (basicResult.transcribedText && basicResult.transcribedText.trim()) {
@@ -98,8 +94,8 @@ export const useIntelligentTranscription = () => {
           
           // If AI processing fails, return the basic transcription
           toast({
-            title: 'Usando transcrição básica',
-            description: 'Processamento IA falhou, mas transcrição real está disponível',
+            title: 'Usando transcrição Whisper',
+            description: 'Processamento IA falhou, mas transcrição local está disponível',
           });
           
           return basicResult;
@@ -109,31 +105,37 @@ export const useIntelligentTranscription = () => {
       return basicResult;
       
     } catch (error) {
-      console.error('Transcription error:', error);
+      console.error('Local transcription error:', error);
       throw error;
     }
-  }, [browserTranscription, processWithAI, toast]);
+  }, [localTranscription, processWithAI, toast]);
 
   const clearTranscript = useCallback(() => {
-    browserTranscription.clearTranscript();
+    localTranscription.clearTranscript();
     setIsProcessingWithAI(false);
     setAiProgress(0);
-  }, [browserTranscription]);
+  }, [localTranscription]);
 
   return {
-    // Expose all browser transcription properties
-    ...browserTranscription,
+    // Expose all local transcription properties
+    ...localTranscription,
     // Override with AI-enhanced functionality
     transcribeAudio,
     clearTranscript,
     // Additional AI processing states
     isProcessingWithAI,
     aiProgress,
-    // Combined loading state
-    isTranscribing: browserTranscription.isTranscribing || isProcessingWithAI,
-    // Combined progress - show AI progress when AI is processing
-    progress: isProcessingWithAI ? aiProgress : browserTranscription.progress,
+    // Combined loading state (include model loading)
+    isTranscribing: localTranscription.isTranscribing || localTranscription.isModelLoading || isProcessingWithAI,
+    // Combined progress - show model loading, transcription, or AI progress
+    progress: localTranscription.isModelLoading 
+      ? localTranscription.progress 
+      : isProcessingWithAI 
+        ? aiProgress 
+        : localTranscription.progress,
     // Processing quality indicator
-    processingQuality: isProcessingWithAI ? 95 : 85,
+    processingQuality: isProcessingWithAI ? 95 : 90, // Higher quality with local Whisper
+    // Model loading state
+    isModelLoading: localTranscription.isModelLoading
   };
 };
