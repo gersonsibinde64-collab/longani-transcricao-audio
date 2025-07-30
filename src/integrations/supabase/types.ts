@@ -14,7 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transcriptions: {
+        Row: {
+          accuracy_score: number | null
+          created_at: string
+          duration_seconds: number | null
+          error_message: string | null
+          file_name: string
+          file_size: number
+          id: string
+          language: string
+          status: string
+          title: string
+          transcribed_text: string | null
+          updated_at: string
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          accuracy_score?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_name: string
+          file_size: number
+          id?: string
+          language?: string
+          status?: string
+          title: string
+          transcribed_text?: string | null
+          updated_at?: string
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          accuracy_score?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_name?: string
+          file_size?: number
+          id?: string
+          language?: string
+          status?: string
+          title?: string
+          transcribed_text?: string | null
+          updated_at?: string
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
