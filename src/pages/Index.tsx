@@ -9,6 +9,8 @@ import { useChunkedTranscription } from "@/hooks/useChunkedTranscription";
 import { useAudioPreferences } from "@/hooks/useAudioPreferences";
 import { AudioControls } from "@/components/AudioControls";
 import { AudioPreferencesSettings } from "@/components/AudioPreferencesSettings";
+import { useIntelligentTranscription } from "@/hooks/useIntelligentTranscription";
+import { IntelligentTranscriptionSettings } from "@/components/IntelligentTranscriptionSettings";
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -23,15 +25,21 @@ const Index = () => {
   
   const hybridTranscription = useHybridTranscription();
   const chunkedTranscription = useChunkedTranscription();
+  const [intelligentSettings, setIntelligentSettings] = useState({
+    dialect: 'pt-PT' as 'pt-PT' | 'pt-MZ',
+    enableIntelligentFormatting: true,
+    enableStructureDetection: true,
+    enablePunctuationRestoration: true
+  });
+
+  const intelligentTranscription = useIntelligentTranscription();
 
   // Use chunked for files under 50MB, hybrid for larger files
   const shouldUseChunked = useCallback((file: File) => {
     return file.size <= 50 * 1024 * 1024; // 50MB limit for local chunked processing
   }, []);
 
-  const activeTranscription = selectedFile && shouldUseChunked(selectedFile) 
-    ? chunkedTranscription 
-    : hybridTranscription;
+  const activeTranscription = intelligentTranscription;
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg', 'audio/ogg'];
@@ -73,31 +81,33 @@ const Index = () => {
     if (!preferences.muteByDefault) {
       try {
         const result = await activeTranscription.transcribeAudio(file, {
-          language: 'pt-BR',
+          language: intelligentSettings.dialect,
           continuous: true,
-          interimResults: true
+          interimResults: true,
+          ...intelligentSettings
         });
         setTranscriptionResult(result.transcribedText || '');
       } catch (error) {
         console.error('Auto-transcription error:', error);
       }
     }
-  }, [toast, preferences.muteByDefault, activeTranscription, shouldUseChunked]);
+  }, [toast, preferences.muteByDefault, activeTranscription, shouldUseChunked, intelligentSettings]);
 
   const handleManualTranscription = useCallback(async () => {
     if (!selectedFile) return;
 
     try {
       const result = await activeTranscription.transcribeAudio(selectedFile, {
-        language: 'pt-BR',
+        language: intelligentSettings.dialect,
         continuous: true,
-        interimResults: true
+        interimResults: true,
+        ...intelligentSettings
       });
       setTranscriptionResult(result.transcribedText || '');
     } catch (error) {
       console.error('Manual transcription error:', error);
     }
-  }, [selectedFile, activeTranscription]);
+  }, [selectedFile, activeTranscription, intelligentSettings]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -200,8 +210,12 @@ const Index = () => {
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="mb-6">
+          <div className="mb-6 space-y-4">
             <AudioPreferencesSettings />
+            <IntelligentTranscriptionSettings
+              settings={intelligentSettings}
+              onSettingsChange={setIntelligentSettings}
+            />
           </div>
         )}
 
