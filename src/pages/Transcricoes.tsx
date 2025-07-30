@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Play, MoreVertical } from "lucide-react";
@@ -87,7 +88,7 @@ export function Transcricoes() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="hover-light-blue focus-blue">
-                      <MoreVertical className="w-4 h-4" strokeWeight={1} />
+                      <MoreVertical className="w-4 h-4" strokeWidth={1} />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white card-shadow">
