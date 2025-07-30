@@ -40,7 +40,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       cursorColor: 'hsl(var(--primary))',
       barWidth: 2,
       barRadius: 1,
-      responsive: true,
       height: 60,
       normalize: true,
       backend: 'WebAudio',

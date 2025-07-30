@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,17 +56,30 @@ export const AudioProcessor: React.FC = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
+      // Upload without progress callback since it's not supported
       const { error: uploadError } = await supabase.storage
         .from('audio-files')
-        .upload(fileName, file, {
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 100);
-          }
-        });
+        .upload(fileName, file);
 
       if (uploadError) {
         throw uploadError;
       }
+
+      // Simulate upload progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(progressInterval);
+        setUploadProgress(100);
+      }, 1000);
 
       const { data: { publicUrl } } = supabase.storage
         .from('audio-files')
