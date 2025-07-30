@@ -196,9 +196,9 @@ export class PortugueseProcessor {
   }
 
   private isList(sentence: string): boolean {
-    return sentence.match(/^(primeiro|segundo|terceiro|em seguida|depois|finalmente|por último)/i) ||
-           sentence.match(/^(a|b|c|d|e)\s+/) ||
-           sentence.match(/^\d+\s+/);
+    return !!sentence.match(/^(primeiro|segundo|terceiro|em seguida|depois|finalmente|por último)/i) ||
+           !!sentence.match(/^(a|b|c|d|e)\s+/) ||
+           !!sentence.match(/^\d+\s+/);
   }
 
   private isQuote(sentence: string): boolean {
