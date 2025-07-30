@@ -4,21 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Download, Loader2, FileAudio, RotateCcw } from "lucide-react";
+import { Upload, Download, Loader2, FileAudio, RotateCcw, AlertTriangle, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIntelligentTranscription } from "@/hooks/useIntelligentTranscription";
-import { AudioControls } from "@/components/AudioControls";
 import { TranscriptionQuality } from "@/components/TranscriptionQuality";
+import { splitAudioFile } from "@/utils/audioSplitter";
 
 type AppState = 'initial' | 'uploading' | 'processing' | 'completed' | 'error';
+
+const MAX_AUDIO_DURATION = 180; // 3 minutes in seconds
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [transcriptionResult, setTranscriptionResult] = useState<string>('');
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcriptionResults, setTranscriptionResults] = useState<string[]>([]);
   const [appState, setAppState] = useState<AppState>('initial');
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
+  const [needsSplitting, setNeedsSplitting] = useState(false);
+  const [currentChunk, setCurrentChunk] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
   
   // Transcription settings
   const [language, setLanguage] = useState<'pt-PT' | 'pt-MZ'>('pt-PT');
@@ -27,6 +31,31 @@ const Index = () => {
   
   const { toast } = useToast();
   const intelligentTranscription = useIntelligentTranscription();
+
+  const getAudioDuration = useCallback((file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.addEventListener('loadedmetadata', () => {
+        resolve(audio.duration);
+      });
+      audio.addEventListener('error', () => {
+        reject(new Error('Failed to load audio file'));
+      });
+      audio.src = URL.createObjectURL(file);
+    });
+  }, []);
+
+  const downloadTranscription = useCallback((text: string, filename: string) => {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg', 'audio/ogg'];
@@ -51,45 +80,128 @@ const Index = () => {
       return;
     }
 
-    setSelectedFile(file);
-    setAppState('uploading');
-    
-    // Create audio URL for playback
-    const url = URL.createObjectURL(file);
-    setAudioUrl(url);
-    
-    const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
-    
-    toast({
-      title: 'Ficheiro carregado com sucesso',
-      description: `${file.name} (${fileSizeMB}MB) - Pronto para transcrição`,
-    });
-  }, [toast]);
+    try {
+      const duration = await getAudioDuration(file);
+      setAudioDuration(duration);
+      setSelectedFile(file);
+      setAppState('uploading');
+      
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+      const durationMin = Math.ceil(duration / 60);
+      
+      if (duration > MAX_AUDIO_DURATION) {
+        setNeedsSplitting(true);
+        const chunks = Math.ceil(duration / MAX_AUDIO_DURATION);
+        setTotalChunks(chunks);
+        
+        toast({
+          title: 'Ficheiro longo detectado',
+          description: `${durationMin}min de áudio será dividido em ${chunks} partes para melhor processamento`,
+        });
+      } else {
+        setNeedsSplitting(false);
+        toast({
+          title: 'Ficheiro carregado com sucesso',
+          description: `${file.name} (${fileSizeMB}MB, ${durationMin}min) - Pronto para transcrição`,
+        });
+      }
+    } catch (error) {
+      setAppState('error');
+      toast({
+        title: "Erro ao processar ficheiro",
+        description: "Não foi possível analisar o ficheiro de áudio.",
+        variant: "destructive"
+      });
+    }
+  }, [toast, getAudioDuration]);
 
-  const handleStartTranscription = useCallback(async () => {
+  const processAudioChunks = useCallback(async () => {
     if (!selectedFile) return;
 
     setAppState('processing');
+    setTranscriptionResults([]);
     intelligentTranscription.clearTranscript();
 
     try {
-      const result = await intelligentTranscription.transcribeAudio(selectedFile, {
-        language: language,
-        continuous: true,
-        interimResults: true,
-        dialect: language,
-        enableIntelligentFormatting: useIntelligent && autoStructure,
-        enableStructureDetection: useIntelligent && autoStructure,
-        enablePunctuationRestoration: useIntelligent
-      });
+      if (needsSplitting) {
+        // Split audio into chunks
+        const chunks = await splitAudioFile(selectedFile, MAX_AUDIO_DURATION);
+        setTotalChunks(chunks.length);
+        
+        // Process each chunk sequentially
+        for (let i = 0; i < chunks.length; i++) {
+          setCurrentChunk(i + 1);
+          
+          toast({
+            title: `Processando parte ${i + 1} de ${chunks.length}`,
+            description: `Transcrevendo segmento ${i + 1}...`,
+          });
+
+          try {
+            const result = await intelligentTranscription.transcribeAudio(chunks[i], {
+              language: language,
+              continuous: true,
+              interimResults: true,
+              dialect: language,
+              enableIntelligentFormatting: useIntelligent && autoStructure,
+              enableStructureDetection: useIntelligent && autoStructure,
+              enablePunctuationRestoration: useIntelligent
+            });
+
+            const chunkText = result.transcribedText || '';
+            setTranscriptionResults(prev => [...prev, chunkText]);
+            
+            // Auto-download each chunk
+            const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_parte_${i + 1}.txt`;
+            downloadTranscription(chunkText, filename);
+            
+            toast({
+              title: `Parte ${i + 1} concluída`,
+              description: `${result.wordCount} palavras transcritas e descarregadas`,
+            });
+            
+            // Small delay between chunks
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+          } catch (chunkError) {
+            console.error(`Error processing chunk ${i + 1}:`, chunkError);
+            toast({
+              title: `Erro na parte ${i + 1}`,
+              description: 'Continuando com a próxima parte...',
+              variant: 'destructive',
+            });
+          }
+        }
+        
+        setAppState('completed');
+        
+      } else {
+        // Process single file normally
+        const result = await intelligentTranscription.transcribeAudio(selectedFile, {
+          language: language,
+          continuous: true,
+          interimResults: true,
+          dialect: language,
+          enableIntelligentFormatting: useIntelligent && autoStructure,
+          enableStructureDetection: useIntelligent && autoStructure,
+          enablePunctuationRestoration: useIntelligent
+        });
+        
+        const transcriptText = result.transcribedText || '';
+        setTranscriptionResults([transcriptText]);
+        
+        // Auto-download single file
+        const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_transcricao.txt`;
+        downloadTranscription(transcriptText, filename);
+        
+        setAppState('completed');
+        
+        toast({
+          title: 'Transcrição concluída',
+          description: `${result.wordCount} palavras transcritas e descarregadas`,
+        });
+      }
       
-      setTranscriptionResult(result.transcribedText || '');
-      setAppState('completed');
-      
-      toast({
-        title: 'Transcrição concluída',
-        description: `${result.wordCount} palavras transcritas com sucesso`,
-      });
     } catch (error) {
       console.error('Transcription error:', error);
       setAppState('error');
@@ -99,37 +211,16 @@ const Index = () => {
         variant: 'destructive',
       });
     }
-  }, [selectedFile, language, useIntelligent, autoStructure, intelligentTranscription, toast]);
-
-  const handleDownload = useCallback(() => {
-    const finalText = transcriptionResult || intelligentTranscription.transcript;
-    if (!finalText.trim()) return;
-
-    const blob = new Blob([finalText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Transcrição_${selectedFile?.name.replace(/\.[^/.]+$/, '') || 'Audio'}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: 'Transcrição descarregada',
-      description: 'O ficheiro foi guardado no seu dispositivo.',
-    });
-  }, [transcriptionResult, intelligentTranscription.transcript, selectedFile?.name, toast]);
+  }, [selectedFile, language, useIntelligent, autoStructure, intelligentTranscription, toast, needsSplitting, downloadTranscription]);
 
   const handleNewTranscription = useCallback(() => {
     setSelectedFile(null);
-    setTranscriptionResult('');
+    setTranscriptionResults([]);
     setAppState('initial');
-    
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
-    }
+    setAudioDuration(0);
+    setNeedsSplitting(false);
+    setCurrentChunk(0);
+    setTotalChunks(0);
     
     intelligentTranscription.clearTranscript();
     
@@ -137,7 +228,7 @@ const Index = () => {
       title: 'Nova transcrição',
       description: 'Pronto para transcrever um novo ficheiro.',
     });
-  }, [audioUrl, intelligentTranscription, toast]);
+  }, [intelligentTranscription, toast]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -159,10 +250,6 @@ const Index = () => {
     setIsDragging(false);
   }, []);
 
-  const handleAudioStateChange = useCallback((isPlaying: boolean) => {
-    setIsAudioPlaying(isPlaying);
-  }, []);
-
   if (!intelligentTranscription.isWebSpeechSupported()) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -177,8 +264,6 @@ const Index = () => {
       </div>
     );
   }
-
-  const finalTranscript = transcriptionResult || intelligentTranscription.transcript;
 
   return (
     <div className="min-h-screen bg-background">
@@ -301,24 +386,26 @@ const Index = () => {
                 {selectedFile.name}
               </p>
               
-              <p className="text-muted-foreground mb-8">
-                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}
+              <p className="text-muted-foreground mb-4">
+                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {Math.ceil(audioDuration / 60)}min • {language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}
               </p>
 
-              {/* Audio Controls */}
-              {audioUrl && (
-                <div className="mb-8 w-full max-w-md">
-                  <AudioControls
-                    audioUrl={audioUrl}
-                    isTranscribing={false}
-                    onAudioStateChange={handleAudioStateChange}
-                  />
+              {needsSplitting && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
+                    <span className="font-medium text-yellow-800">Ficheiro será dividido</span>
+                  </div>
+                  <p className="text-sm text-yellow-700 text-center">
+                    Áudio > 3min será processado em {totalChunks} partes sequenciais.
+                    Cada parte será descarregada automaticamente após transcrição.
+                  </p>
                 </div>
               )}
 
               <div className="space-y-4">
-                <Button onClick={handleStartTranscription} size="lg" className="font-light px-8">
-                  Iniciar transcrição
+                <Button onClick={processAudioChunks} size="lg" className="font-light px-8">
+                  {needsSplitting ? `Iniciar processamento (${totalChunks} partes)` : 'Iniciar transcrição'}
                 </Button>
                 <Button variant="outline" onClick={handleNewTranscription} className="font-light">
                   Escolher outro ficheiro
@@ -335,7 +422,7 @@ const Index = () => {
               </div>
               
               <h3 className="text-3xl font-light text-foreground mb-4">
-                A transcrever o áudio...
+                {needsSplitting ? `Processando parte ${currentChunk} de ${totalChunks}` : 'A transcrever o áudio...'}
               </h3>
               
               <div className="w-full max-w-md mb-6">
@@ -345,14 +432,11 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Audio controls during processing */}
-              {audioUrl && (
-                <div className="mb-6 w-full max-w-md">
-                  <AudioControls
-                    audioUrl={audioUrl}
-                    isTranscribing={true}
-                    onAudioStateChange={handleAudioStateChange}
-                  />
+              {needsSplitting && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 text-center">
+                    {transcriptionResults.length > 0 && `${transcriptionResults.length} parte(s) já processada(s) e descarregada(s)`}
+                  </p>
                 </div>
               )}
 
@@ -379,41 +463,48 @@ const Index = () => {
           )}
 
           {/* COMPLETED STATE */}
-          {appState === 'completed' && finalTranscript && (
+          {appState === 'completed' && transcriptionResults.length > 0 && (
             <div className="flex-1 flex flex-col">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-light text-foreground mb-2">
-                  Transcrição concluída
+                  {needsSplitting ? 'Processamento concluído' : 'Transcrição concluída'}
                 </h3>
                 <p className="text-muted-foreground font-light">
-                  {finalTranscript.split(' ').length} palavras • {language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}
+                  {needsSplitting 
+                    ? `${transcriptionResults.length} partes processadas e descarregadas`
+                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras • ${language === 'pt-PT' ? 'Português Europeu' : 'Português Moçambicano'}`
+                  }
                 </p>
               </div>
 
-              {/* Transcription Result */}
-              <Card className="flex-1 mb-6">
+              {/* Summary Card */}
+              <Card className="mb-6">
                 <CardContent className="p-6">
-                  <div className="prose prose-lg max-w-none">
-                    <div 
-                      className="leading-relaxed text-foreground font-light"
-                      style={{ whiteSpace: 'pre-line' }}
-                      dangerouslySetInnerHTML={{ __html: finalTranscript.replace(/\n/g, '<br>') }}
-                    />
+                  <div className="space-y-4">
+                    {needsSplitting ? (
+                      <div className="text-center">
+                        <FileText className="w-16 h-16 text-primary mx-auto mb-4" strokeWidth={1} />
+                        <h4 className="text-xl font-medium mb-2">
+                          {transcriptionResults.length} ficheiros descarregados
+                        </h4>
+                        <p className="text-muted-foreground">
+                          Todas as partes foram transcritas e descarregadas automaticamente.
+                          Verifique a sua pasta de descargas.
+                        </p>
+                      </div>
+                    ) : (
+                      <div 
+                        className="leading-relaxed text-foreground font-light"
+                        style={{ whiteSpace: 'pre-line' }}
+                        dangerouslySetInnerHTML={{ __html: transcriptionResults[0]?.replace(/\n/g, '<br>') }}
+                      />
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  onClick={handleDownload}
-                  size="lg"
-                  className="px-8 py-3 text-lg font-light"
-                >
-                  <Download className="w-5 h-5 mr-3" strokeWidth={1.5} />
-                  Descarregar transcrição
-                </Button>
-                
                 <Button 
                   variant="outline"
                   onClick={handleNewTranscription}
