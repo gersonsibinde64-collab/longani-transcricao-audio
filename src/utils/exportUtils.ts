@@ -14,23 +14,82 @@ export interface ExportOptions {
 }
 
 export class ExportUtils {
+  static async exportAsMarkdown(options: ExportOptions): Promise<void> {
+    const { title, content, metadata } = options;
+    
+    let markdownContent = `# ${title}\n\n`;
+    
+    // Add metadata section
+    if (metadata) {
+      markdownContent += '## Informações da Transcrição\n\n';
+      
+      if (metadata.createdAt) {
+        markdownContent += `**Data:** ${metadata.createdAt}\n\n`;
+      }
+      if (metadata.duration) {
+        const minutes = Math.floor(metadata.duration / 60);
+        const seconds = metadata.duration % 60;
+        markdownContent += `**Duração:** ${minutes}:${seconds.toString().padStart(2, '0')}\n\n`;
+      }
+      if (metadata.wordCount) {
+        markdownContent += `**Palavras:** ${metadata.wordCount}\n\n`;
+      }
+      if (metadata.accuracy) {
+        markdownContent += `**Precisão:** ${metadata.accuracy.toFixed(1)}%\n\n`;
+      }
+      
+      markdownContent += '---\n\n';
+    }
+    
+    // Add transcribed content
+    markdownContent += '## Transcrição\n\n';
+    
+    // Ensure we have actual content
+    if (!content || content.trim() === '') {
+      markdownContent += '*Não foi possível extrair texto do áudio. Verifique se o arquivo de áudio é válido e tente novamente.*\n\n';
+    } else {
+      // Clean and structure the content
+      const cleanContent = this.cleanAndStructureContent(content);
+      markdownContent += cleanContent;
+    }
+    
+    // Add footer
+    markdownContent += '\n\n---\n\n*Transcrição gerada automaticamente usando Whisper AI*';
+    
+    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+    this.downloadFile(blob, `${title}.md`);
+  }
+
   static async exportAsTxt(options: ExportOptions): Promise<void> {
     const { title, content, metadata } = options;
     
-    let textContent = `${title}\n\n`;
+    let textContent = `${title}\n${'='.repeat(title.length)}\n\n`;
     
     if (metadata) {
-      textContent += '--- METADADOS ---\n';
+      textContent += 'INFORMAÇÕES DA TRANSCRIÇÃO\n';
+      textContent += '-'.repeat(25) + '\n';
       if (metadata.createdAt) textContent += `Data: ${metadata.createdAt}\n`;
-      if (metadata.duration) textContent += `Duração: ${Math.floor(metadata.duration / 60)}:${(metadata.duration % 60).toString().padStart(2, '0')}\n`;
+      if (metadata.duration) {
+        const minutes = Math.floor(metadata.duration / 60);
+        const seconds = metadata.duration % 60;
+        textContent += `Duração: ${minutes}:${seconds.toString().padStart(2, '0')}\n`;
+      }
       if (metadata.wordCount) textContent += `Palavras: ${metadata.wordCount}\n`;
-      if (metadata.accuracy) textContent += `Precisão: ${metadata.accuracy}%\n`;
-      textContent += '\n--- TRANSCRIÇÃO ---\n\n';
+      if (metadata.accuracy) textContent += `Precisão: ${metadata.accuracy.toFixed(1)}%\n`;
+      textContent += '\n';
     }
     
-    // Remove HTML tags for plain text
-    const plainText = content.replace(/<[^>]*>/g, '');
-    textContent += plainText;
+    textContent += 'TRANSCRIÇÃO\n';
+    textContent += '-'.repeat(11) + '\n\n';
+    
+    if (!content || content.trim() === '') {
+      textContent += 'Não foi possível extrair texto do áudio. Verifique se o arquivo de áudio é válido e tente novamente.\n';
+    } else {
+      // Remove HTML tags and structure content
+      const plainText = content.replace(/<[^>]*>/g, '');
+      const structuredText = this.cleanAndStructureContent(plainText);
+      textContent += structuredText;
+    }
     
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     this.downloadFile(blob, `${title}.txt`);
@@ -57,7 +116,7 @@ export class ExportUtils {
         new Paragraph({
           children: [
             new TextRun({
-              text: 'METADADOS',
+              text: 'INFORMAÇÕES DA TRANSCRIÇÃO',
               bold: true,
               size: 24,
             }),
@@ -105,7 +164,7 @@ export class ExportUtils {
           new Paragraph({
             children: [
               new TextRun({ text: 'Precisão: ', bold: true }),
-              new TextRun({ text: `${metadata.accuracy}%` }),
+              new TextRun({ text: `${metadata.accuracy.toFixed(1)}%` }),
             ],
           })
         );
@@ -126,22 +185,37 @@ export class ExportUtils {
       );
     }
 
-    // Remove HTML tags and add content
-    const plainText = content.replace(/<[^>]*>/g, '');
-    const paragraphs = plainText.split('\n').filter(p => p.trim());
-    
-    paragraphs.forEach(paragraph => {
+    // Add content
+    if (!content || content.trim() === '') {
       children.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: paragraph,
+              text: 'Não foi possível extrair texto do áudio. Verifique se o arquivo de áudio é válido e tente novamente.',
+              italics: true,
               size: 24,
             }),
           ],
         })
       );
-    });
+    } else {
+      const plainText = content.replace(/<[^>]*>/g, '');
+      const structuredText = this.cleanAndStructureContent(plainText);
+      const paragraphs = structuredText.split('\n\n').filter(p => p.trim());
+      
+      paragraphs.forEach(paragraph => {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: paragraph.trim(),
+                size: 24,
+              }),
+            ],
+          })
+        );
+      });
+    }
 
     const doc = new Document({
       sections: [{
@@ -174,7 +248,7 @@ export class ExportUtils {
     if (metadata) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('METADADOS', 20, yPosition);
+      doc.text('INFORMAÇÕES DA TRANSCRIÇÃO', 20, yPosition);
       yPosition += 10;
       
       doc.setFontSize(10);
@@ -198,7 +272,7 @@ export class ExportUtils {
       }
       
       if (metadata.accuracy) {
-        doc.text(`Precisão: ${metadata.accuracy}%`, 20, yPosition);
+        doc.text(`Precisão: ${metadata.accuracy.toFixed(1)}%`, 20, yPosition);
         yPosition += 6;
       }
       
@@ -215,17 +289,32 @@ export class ExportUtils {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     
-    const plainText = content.replace(/<[^>]*>/g, '');
-    const lines = doc.splitTextToSize(plainText, 170);
-    
-    lines.forEach((line: string) => {
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      doc.text(line, 20, yPosition);
-      yPosition += 6;
-    });
+    if (!content || content.trim() === '') {
+      const errorText = 'Não foi possível extrair texto do áudio. Verifique se o arquivo de áudio é válido e tente novamente.';
+      const lines = doc.splitTextToSize(errorText, 170);
+      
+      lines.forEach((line: string) => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(line, 20, yPosition);
+        yPosition += 6;
+      });
+    } else {
+      const plainText = content.replace(/<[^>]*>/g, '');
+      const structuredText = this.cleanAndStructureContent(plainText);
+      const lines = doc.splitTextToSize(structuredText, 170);
+      
+      lines.forEach((line: string) => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(line, 20, yPosition);
+        yPosition += 6;
+      });
+    }
     
     doc.save(`${title}.pdf`);
   }
@@ -233,54 +322,50 @@ export class ExportUtils {
   static async exportAsSrt(options: ExportOptions): Promise<void> {
     const { title, content } = options;
     
+    if (!content || content.trim() === '') {
+      // Create a basic SRT with error message
+      const srtContent = `1\n00:00:00,000 --> 00:00:05,000\nNão foi possível extrair texto do áudio.\n\n2\n00:00:05,000 --> 00:00:10,000\nVerifique se o arquivo é válido e tente novamente.\n\n`;
+      
+      const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+      this.downloadFile(blob, `${title}.srt`);
+      return;
+    }
+    
     // Parse content to extract timestamps and text
     let srtContent = '';
     let counter = 1;
     
     // Look for timestamp patterns in the content
-    const timestampRegex = /\[(\d{2}):(\d{2}):(\d{2})\]/g;
+    const timestampRegex = /## Parte \d+ \((\d+):(\d+)\)/g;
     const segments = content.split(timestampRegex);
     
-    if (segments.length > 1) {
-      // Content has timestamps
-      for (let i = 1; i < segments.length; i += 4) {
-        const hours = segments[i];
-        const minutes = segments[i + 1];
-        const seconds = segments[i + 2];
-        const text = segments[i + 3]?.trim();
+    if (segments.length > 3) {
+      // Content has parts with timestamps
+      for (let i = 1; i < segments.length; i += 3) {
+        const minutes = parseInt(segments[i]);
+        const seconds = parseInt(segments[i + 1]);
+        const text = segments[i + 2]?.trim();
         
         if (text && text.length > 0) {
-          const startTime = `${hours}:${minutes}:${seconds},000`;
+          const startTime = this.formatSrtTime(minutes * 60 + seconds);
+          const endTime = this.formatSrtTime(minutes * 60 + seconds + 30); // 30 seconds duration
           
-          // Calculate end time (add 3 seconds or until next timestamp)
-          let endHours = hours;
-          let endMinutes = minutes;
-          let endSeconds = (parseInt(seconds) + 3).toString().padStart(2, '0');
+          const cleanText = text.replace(/<[^>]*>/g, '').replace(/\n+/g, ' ').trim();
           
-          if (parseInt(endSeconds) >= 60) {
-            endSeconds = ((parseInt(endSeconds)) % 60).toString().padStart(2, '0');
-            endMinutes = (parseInt(minutes) + 1).toString().padStart(2, '0');
-            if (parseInt(endMinutes) >= 60) {
-              endMinutes = ((parseInt(endMinutes)) % 60).toString().padStart(2, '0');
-              endHours = (parseInt(hours) + 1).toString().padStart(2, '0');
-            }
+          if (cleanText && cleanText !== '[Sem conteúdo transcrito]') {
+            srtContent += `${counter}\n`;
+            srtContent += `${startTime} --> ${endTime}\n`;
+            srtContent += `${cleanText}\n\n`;
+            counter++;
           }
-          
-          const endTime = `${endHours}:${endMinutes}:${endSeconds},000`;
-          
-          srtContent += `${counter}\n`;
-          srtContent += `${startTime} --> ${endTime}\n`;
-          srtContent += `${text.replace(/<[^>]*>/g, '').trim()}\n\n`;
-          
-          counter++;
         }
       }
     } else {
-      // No timestamps, create generic segments
-      const plainText = content.replace(/<[^>]*>/g, '');
+      // No parts, create generic segments
+      const plainText = content.replace(/<[^>]*>/g, '').replace(/\n+/g, ' ');
       const words = plainText.split(' ').filter(word => word.trim());
-      const wordsPerSegment = 10;
-      const secondsPerSegment = 4;
+      const wordsPerSegment = 15;
+      const secondsPerSegment = 5;
       
       for (let i = 0; i < words.length; i += wordsPerSegment) {
         const segmentWords = words.slice(i, i + wordsPerSegment);
@@ -300,6 +385,28 @@ export class ExportUtils {
     
     const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
     this.downloadFile(blob, `${title}.srt`);
+  }
+
+  private static cleanAndStructureContent(content: string): string {
+    if (!content || content.trim() === '') {
+      return 'Não foi possível extrair conteúdo do áudio.';
+    }
+
+    // Remove HTML tags
+    let cleaned = content.replace(/<[^>]*>/g, '');
+    
+    // Fix spacing
+    cleaned = cleaned.replace(/\s+/g, ' ');
+    
+    // Ensure proper paragraph breaks
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n\n');
+    
+    // Ensure it ends with punctuation
+    if (!cleaned.trim().match(/[.!?]$/)) {
+      cleaned = cleaned.trim() + '.';
+    }
+    
+    return cleaned.trim();
   }
 
   private static formatSrtTime(totalSeconds: number): string {

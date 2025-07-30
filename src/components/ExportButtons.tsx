@@ -5,7 +5,8 @@ import {
   FileText, 
   FileImage, 
   Download,
-  Video
+  Video,
+  FileDown
 } from 'lucide-react';
 import { ExportUtils, ExportOptions } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -30,24 +31,19 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({
 }) => {
   const { toast } = useToast();
 
-  const handleExport = async (format: 'txt' | 'docx' | 'pdf' | 'srt') => {
-    if (!content || !content.trim()) {
-      toast({
-        title: 'Erro na exportação',
-        description: 'Não há conteúdo para exportar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleExport = async (format: 'md' | 'txt' | 'docx' | 'pdf' | 'srt') => {
+    // Always allow export, even with empty content (will show appropriate message)
     try {
       const exportOptions: ExportOptions = {
         title: title || 'Transcrição',
-        content,
+        content: content || '',
         metadata,
       };
 
       switch (format) {
+        case 'md':
+          await ExportUtils.exportAsMarkdown(exportOptions);
+          break;
         case 'txt':
           await ExportUtils.exportAsTxt(exportOptions);
           break;
@@ -76,8 +72,21 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({
     }
   };
 
+  const hasContent = content && content.trim().length > 0;
+
   return (
-    <div className={`flex gap-2 ${className}`}>
+    <div className={`flex gap-2 flex-wrap ${className}`}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleExport('md')}
+        className="h-8"
+        title="Exportar como Markdown"
+      >
+        <FileDown className="w-3 h-3 mr-1" />
+        MD
+      </Button>
+      
       <Button
         variant="outline"
         size="sm"
@@ -121,6 +130,12 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({
         <Video className="w-3 h-3 mr-1" />
         SRT
       </Button>
+      
+      {!hasContent && (
+        <span className="text-xs text-muted-foreground ml-2 self-center">
+          Ficheiros vazios incluirão mensagem de erro
+        </span>
+      )}
     </div>
   );
 };
