@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -396,7 +395,7 @@ const Index = () => {
               )}
 
               <TranscriptionQuality 
-                quality={intelligentTranscription.processingQuality}
+                accuracy={intelligentTranscription.processingQuality}
                 className="mt-4"
               />
             </div>
