@@ -38,6 +38,33 @@ export type Database = {
         }
         Relationships: []
       }
+      temp_transcriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          file_name: string
+          file_size: number
+          id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          file_name: string
+          file_size: number
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          file_name?: string
+          file_size?: number
+          id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       transcriptions: {
         Row: {
           accuracy_score: number | null
@@ -97,7 +124,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_transcriptions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
