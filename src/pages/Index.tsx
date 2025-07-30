@@ -19,6 +19,7 @@ const Index = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState>('initial');
   const [audioMuted, setAudioMuted] = useState(true);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   
   // Transcription settings
   const [language, setLanguage] = useState<'pt-PT' | 'pt-MZ'>('pt-PT');
@@ -158,6 +159,11 @@ const Index = () => {
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+  }, []);
+
+  const handleAudioStateChange = useCallback((isPlaying: boolean, isMuted: boolean) => {
+    setIsAudioPlaying(isPlaying);
+    setAudioMuted(isMuted);
   }, []);
 
   if (!intelligentTranscription.isWebSpeechSupported()) {
@@ -318,7 +324,7 @@ const Index = () => {
                   <AudioControls
                     audioUrl={audioUrl}
                     isTranscribing={false}
-                    onAudioStateChange={(isPlaying, isMuted) => setAudioMuted(isMuted)}
+                    onAudioStateChange={handleAudioStateChange}
                   />
                 </div>
               )}
@@ -352,29 +358,14 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Audio controls during processing */}
+              {/* Audio controls during processing - use the AudioControls component */}
               {audioUrl && (
                 <div className="mb-6 w-full max-w-md">
-                  <div className="flex items-center justify-center gap-3 mb-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAudioMuted(!audioMuted)}
-                      className="font-light"
-                    >
-                      {audioMuted ? (
-                        <>
-                          <VolumeX className="w-4 h-4 mr-2" />
-                          Activar som
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 className="w-4 h-4 mr-2" />
-                          Silenciar áudio
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <AudioControls
+                    audioUrl={audioUrl}
+                    isTranscribing={true}
+                    onAudioStateChange={handleAudioStateChange}
+                  />
                 </div>
               )}
 
