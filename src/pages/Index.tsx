@@ -1,27 +1,37 @@
-
 import { useState, useCallback } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, Download, Loader2, FileAudio } from "lucide-react";
+import { Upload, Download, Loader2, FileAudio, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useTranscription } from "@/hooks/useTranscription";
+import { useHybridTranscription } from "@/hooks/useHybridTranscription";
+import { useChunkedTranscription } from "@/hooks/useChunkedTranscription";
+import { useAudioPreferences } from "@/hooks/useAudioPreferences";
+import { AudioControls } from "@/components/AudioControls";
+import { AudioPreferencesSettings } from "@/components/AudioPreferencesSettings";
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [transcriptionResult, setTranscriptionResult] = useState<string>('');
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [audioState, setAudioState] = useState({ isPlaying: false, isMuted: true });
+  
   const { toast } = useToast();
-  const { 
-    isTranscribing, 
-    transcript, 
-    interimTranscript, 
-    error, 
-    progress, 
-    transcribeAudio, 
-    clearTranscript,
-    isWebSpeechSupported 
-  } = useTranscription();
+  const { preferences } = useAudioPreferences();
+  
+  const hybridTranscription = useHybridTranscription();
+  const chunkedTranscription = useChunkedTranscription();
+
+  // Use chunked for files under 50MB, hybrid for larger files
+  const shouldUseChunked = useCallback((file: File) => {
+    return file.size <= 50 * 1024 * 1024; // 50MB limit for local chunked processing
+  }, []);
+
+  const activeTranscription = selectedFile && shouldUseChunked(selectedFile) 
+    ? chunkedTranscription 
+    : hybridTranscription;
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg', 'audio/ogg'];
@@ -35,30 +45,67 @@ const Index = () => {
       return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (file.size > 500 * 1024 * 1024) { // 500MB absolute limit
       toast({
         title: "Arquivo muito grande",
-        description: "Máximo 50MB permitido.",
+        description: "Máximo 500MB permitido.",
         variant: "destructive"
       });
       return;
     }
 
     setSelectedFile(file);
-    clearTranscript();
+    activeTranscription.clearTranscript();
     
+    // Create audio URL for playback
+    const url = URL.createObjectURL(file);
+    setAudioUrl(url);
+    
+    const processingMethod = shouldUseChunked(file) ? 'chunked local' : 'hybrid';
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+    
+    toast({
+      title: 'Arquivo carregado',
+      description: `${file.name} (${fileSizeMB}MB) - ${processingMethod}`,
+    });
+
+    // Auto-start transcription if not muted by default
+    if (!preferences.muteByDefault) {
+      try {
+        const transcribeMethod = shouldUseChunked(file) 
+          ? chunkedTranscription.transcribeAudioChunked 
+          : hybridTranscription.transcribeAudio;
+
+        const result = await transcribeMethod(file, {
+          language: 'pt-BR',
+          continuous: true,
+          interimResults: true
+        });
+        setTranscriptionResult(result.transcribedText || '');
+      } catch (error) {
+        console.error('Auto-transcription error:', error);
+      }
+    }
+  }, [toast, preferences.muteByDefault, activeTranscription, shouldUseChunked, chunkedTranscription, hybridTranscription]);
+
+  const handleManualTranscription = useCallback(async () => {
+    if (!selectedFile) return;
+
     try {
-      const result = await transcribeAudio(file, {
+      const transcribeMethod = shouldUseChunked(selectedFile) 
+        ? chunkedTranscription.transcribeAudioChunked 
+        : hybridTranscription.transcribeAudio;
+
+      const result = await transcribeMethod(selectedFile, {
         language: 'pt-BR',
         continuous: true,
         interimResults: true
       });
       setTranscriptionResult(result.transcribedText || '');
     } catch (error) {
-      console.error('Transcription error:', error);
-      setSelectedFile(null);
+      console.error('Manual transcription error:', error);
     }
-  }, [transcribeAudio, clearTranscript, toast]);
+  }, [selectedFile, shouldUseChunked, chunkedTranscription, hybridTranscription]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -81,7 +128,7 @@ const Index = () => {
   }, []);
 
   const handleDownload = useCallback(() => {
-    const finalText = transcriptionResult || transcript;
+    const finalText = transcriptionResult || activeTranscription.transcript;
     if (!finalText.trim()) return;
 
     const blob = new Blob([finalText], { type: 'text/plain;charset=utf-8' });
@@ -94,21 +141,29 @@ const Index = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    // Clear all data after download (zero persistence)
+    // Clear all data after download
     setTimeout(() => {
       setSelectedFile(null);
       setTranscriptionResult('');
-      clearTranscript();
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+        setAudioUrl(null);
+      }
+      activeTranscription.clearTranscript();
     }, 1000);
-  }, [transcriptionResult, transcript, selectedFile?.name, clearTranscript]);
+  }, [transcriptionResult, activeTranscription.transcript, selectedFile?.name, audioUrl, activeTranscription]);
 
   const handleReset = useCallback(() => {
     setSelectedFile(null);
     setTranscriptionResult('');
-    clearTranscript();
-  }, [clearTranscript]);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    activeTranscription.clearTranscript();
+  }, [audioUrl, activeTranscription]);
 
-  if (!isWebSpeechSupported()) {
+  if (!activeTranscription.isWebSpeechSupported && !activeTranscription.isWebSpeechSupported()) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
@@ -123,25 +178,44 @@ const Index = () => {
     );
   }
 
-  const finalTranscript = transcriptionResult || transcript;
-  const showDownload = finalTranscript && !isTranscribing;
+  const finalTranscript = transcriptionResult || activeTranscription.transcript;
+  const showDownload = finalTranscript && !activeTranscription.isTranscribing;
+  const currentProgress = chunkedTranscription.chunkProgress 
+    ? Math.round((chunkedTranscription.chunkProgress.currentChunk / chunkedTranscription.chunkProgress.totalChunks) * 100)
+    : activeTranscription.progress;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <div className="w-full max-w-4xl">
-        {/* Simple Logo */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-light text-foreground mb-3">
-            Longani
-          </h1>
+        {/* Header with Settings */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div></div>
+            <h1 className="text-5xl font-light text-foreground">Longani</h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettings(!showSettings)}
+              className="text-muted-foreground"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+          </div>
           <p className="text-xl text-muted-foreground font-light">
             Transcreva áudio para texto
           </p>
         </div>
 
-        {/* Main Drop Zone - 70% of screen */}
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="mb-6">
+            <AudioPreferencesSettings />
+          </div>
+        )}
+
+        {/* Main Content */}
         <div className="min-h-[70vh] flex flex-col">
-          {/* Massive Drop Zone */}
+          {/* Drop Zone */}
           <div
             className={`
               flex-1 border-2 border-dashed rounded-2xl 
@@ -160,7 +234,6 @@ const Index = () => {
             onClick={() => !selectedFile && document.getElementById('file-input')?.click()}
           >
             {!selectedFile ? (
-              // Initial State
               <div className="text-center px-8">
                 <div className="w-24 h-24 bg-accent rounded-3xl flex items-center justify-center mb-8 mx-auto">
                   <Upload className="w-12 h-12 text-primary" strokeWidth={1} />
@@ -169,7 +242,7 @@ const Index = () => {
                   Arraste seu áudio aqui
                 </h2>
                 <p className="text-xl text-muted-foreground font-light mb-8">
-                  MP3, WAV ou M4A • Máximo 50MB
+                  MP3, WAV ou M4A • Máximo 500MB
                 </p>
                 <Button size="lg" className="px-12 py-6 text-lg font-light">
                   <Upload className="w-5 h-5 mr-3" strokeWidth={1.5} />
@@ -177,10 +250,9 @@ const Index = () => {
                 </Button>
               </div>
             ) : (
-              // Processing State
               <div className="text-center px-8 w-full max-w-2xl">
                 <div className="w-20 h-20 bg-accent rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                  {isTranscribing ? (
+                  {activeTranscription.isTranscribing ? (
                     <Loader2 className="w-10 h-10 text-primary animate-spin" strokeWidth={1.5} />
                   ) : (
                     <FileAudio className="w-10 h-10 text-primary" strokeWidth={1.5} />
@@ -192,45 +264,60 @@ const Index = () => {
                 </h3>
                 
                 <p className="text-lg text-muted-foreground font-light mb-6">
-                  {isTranscribing ? 'Transcrevendo...' : showDownload ? 'Concluído' : 'Processando...'}
+                  {activeTranscription.isTranscribing 
+                    ? chunkedTranscription.chunkProgress 
+                      ? `Processando segmento ${chunkedTranscription.chunkProgress.currentChunk} de ${chunkedTranscription.chunkProgress.totalChunks}`
+                      : 'Transcrevendo...'
+                    : showDownload 
+                      ? 'Concluído' 
+                      : 'Pronto para transcrever'
+                  }
                 </p>
 
-                {isTranscribing && (
+                {activeTranscription.isTranscribing && preferences.showVisualProgress && (
                   <div className="mb-6 w-full">
-                    <Progress value={progress} className="w-full h-3" />
+                    <Progress value={currentProgress} className="w-full h-3" />
                     <p className="text-sm text-muted-foreground font-light mt-2">
-                      {Math.round(progress)}%
+                      {Math.round(currentProgress)}%
                     </p>
                   </div>
                 )}
 
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                    {error}
+                {!activeTranscription.isTranscribing && (
+                  <div className="space-x-4">
+                    <Button onClick={handleManualTranscription} className="font-light">
+                      Iniciar Transcrição
+                    </Button>
+                    <Button variant="outline" onClick={handleReset} className="font-light">
+                      Novo arquivo
+                    </Button>
                   </div>
                 )}
-
-                <Button 
-                  variant="outline" 
-                  onClick={handleReset}
-                  className="font-light"
-                >
-                  Novo arquivo
-                </Button>
               </div>
             )}
           </div>
 
-          {/* Transcription Text */}
-          {(finalTranscript || interimTranscript) && (
+          {/* Audio Controls */}
+          {audioUrl && (
+            <div className="mt-6">
+              <AudioControls
+                audioUrl={audioUrl}
+                isTranscribing={activeTranscription.isTranscribing}
+                onAudioStateChange={(isPlaying, isMuted) => setAudioState({ isPlaying, isMuted })}
+              />
+            </div>
+          )}
+
+          {/* Transcription Results */}
+          {(finalTranscript || activeTranscription.interimTranscript) && (
             <Card className="mt-8 bg-white border-border">
               <CardContent className="p-8">
                 <div className="prose max-w-none">
                   <p className="text-lg leading-relaxed text-foreground font-light">
                     {finalTranscript}
-                    {interimTranscript && (
+                    {activeTranscription.interimTranscript && (
                       <span className="text-muted-foreground italic">
-                        {interimTranscript}
+                        {activeTranscription.interimTranscript}
                       </span>
                     )}
                   </p>
