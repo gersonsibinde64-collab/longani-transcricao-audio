@@ -2,14 +2,12 @@
 import { useState, useCallback, useEffect } from 'react';
 
 export interface AudioPreferences {
-  muteByDefault: boolean;
   autoPlay: boolean;
   showVisualProgress: boolean;
   volume: number;
 }
 
 const DEFAULT_PREFERENCES: AudioPreferences = {
-  muteByDefault: true,
   autoPlay: false,
   showVisualProgress: true,
   volume: 0.7,

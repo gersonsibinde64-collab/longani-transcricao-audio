@@ -3,13 +3,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { Volume2, Play, Pause } from 'lucide-react';
 import { useAudioPreferences } from '@/hooks/useAudioPreferences';
 
 interface AudioControlsProps {
   audioUrl: string | null;
   isTranscribing: boolean;
-  onAudioStateChange?: (isPlaying: boolean, isMuted: boolean) => void;
+  onAudioStateChange?: (isPlaying: boolean) => void;
   className?: string;
 }
 
@@ -21,7 +21,6 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
 }) => {
   const { preferences, updatePreferences } = useAudioPreferences();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(preferences.muteByDefault);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -31,7 +30,6 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
     if (audioUrl && !audioRef.current) {
       audioRef.current = new Audio(audioUrl);
       audioRef.current.volume = preferences.volume;
-      audioRef.current.muted = isMuted;
 
       // Set up event listeners
       audioRef.current.addEventListener('loadedmetadata', () => {
@@ -58,8 +56,8 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         setIsPlaying(false);
       });
 
-      // Auto-play if preference is set and not transcribing with mute preference
-      if (preferences.autoPlay && !(isTranscribing && preferences.muteByDefault)) {
+      // Auto-play if preference is set
+      if (preferences.autoPlay) {
         audioRef.current.play().catch(console.error);
       }
     }
@@ -75,21 +73,12 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         audioRef.current = null;
       }
     };
-  }, [audioUrl, preferences.autoPlay, preferences.volume, isMuted, isTranscribing, preferences.muteByDefault]);
+  }, [audioUrl, preferences.autoPlay, preferences.volume]);
 
-  // Update parent component when audio state changes (for display purposes only)
+  // Update parent component when audio state changes
   useEffect(() => {
-    onAudioStateChange?.(isPlaying, isMuted);
-  }, [isPlaying, isMuted, onAudioStateChange]);
-
-  // Handle mute during transcription - only affects audio playback, not transcription
-  useEffect(() => {
-    if (isTranscribing && preferences.muteByDefault && audioRef.current && !isMuted) {
-      // Only mute if user hasn't manually unmuted and preference is set
-      audioRef.current.muted = true;
-      setIsMuted(true);
-    }
-  }, [isTranscribing, preferences.muteByDefault]);
+    onAudioStateChange?.(isPlaying);
+  }, [isPlaying, onAudioStateChange]);
 
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -100,15 +89,6 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
       audioRef.current.play().catch(console.error);
     }
   }, [isPlaying]);
-
-  const toggleMute = useCallback(() => {
-    if (!audioRef.current) return;
-
-    const newMutedState = !isMuted;
-    // This only affects audio playback, transcription continues independently
-    audioRef.current.muted = newMutedState;
-    setIsMuted(newMutedState);
-  }, [isMuted]);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const volume = value[0];
@@ -152,24 +132,6 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
                 <Play className="w-5 h-5" />
               )}
             </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleMute}
-              className={`h-10 w-10 ${isMuted ? 'text-red-500' : 'text-primary'}`}
-              title={isMuted ? 'Activar som do áudio' : 'Silenciar áudio'}
-            >
-              {isMuted ? (
-                <VolumeX className="w-5 h-5" />
-              ) : (
-                <Volume2 className="w-5 h-5" />
-              )}
-            </Button>
-
-            <span className="text-sm font-light text-muted-foreground">
-              {isMuted ? '🔇 Áudio silenciado' : '🔊 Áudio com som'}
-            </span>
           </div>
 
           <div className="text-sm text-muted-foreground font-mono">
@@ -190,31 +152,26 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         </div>
 
         {/* Volume Control */}
-        {!isMuted && (
-          <div className="flex items-center gap-3">
-            <Volume2 className="w-4 h-4 text-muted-foreground" />
-            <Slider
-              value={[preferences.volume]}
-              max={1}
-              step={0.01}
-              onValueChange={handleVolumeChange}
-              className="flex-1 max-w-32"
-            />
-            <span className="text-xs text-muted-foreground w-8">
-              {Math.round(preferences.volume * 100)}%
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Volume2 className="w-4 h-4 text-muted-foreground" />
+          <Slider
+            value={[preferences.volume]}
+            max={1}
+            step={0.01}
+            onValueChange={handleVolumeChange}
+            className="flex-1 max-w-32"
+          />
+          <span className="text-xs text-muted-foreground w-8">
+            {Math.round(preferences.volume * 100)}%
+          </span>
+        </div>
 
-        {/* Transcription Status - clarify that transcription continues */}
+        {/* Transcription Status */}
         {isTranscribing && (
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              🎯 Transcrevendo... {isMuted ? '(áudio silenciado)' : '(com áudio)'}
+              🎯 Transcrevendo...
             </span>
-            <p className="text-xs text-muted-foreground mt-1 opacity-75">
-              A transcrição continua independentemente do estado do áudio
-            </p>
           </div>
         )}
       </CardContent>

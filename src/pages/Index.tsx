@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Download, Loader2, FileAudio, Settings, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Upload, Download, Loader2, FileAudio, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIntelligentTranscription } from "@/hooks/useIntelligentTranscription";
 import { AudioControls } from "@/components/AudioControls";
@@ -18,13 +18,11 @@ const Index = () => {
   const [transcriptionResult, setTranscriptionResult] = useState<string>('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState>('initial');
-  const [audioMuted, setAudioMuted] = useState(true);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   
   // Transcription settings
   const [language, setLanguage] = useState<'pt-PT' | 'pt-MZ'>('pt-PT');
   const [useIntelligent, setUseIntelligent] = useState(true);
-  const [muteAudio, setMuteAudio] = useState(true);
   const [autoStructure, setAutoStructure] = useState(true);
   
   const { toast } = useToast();
@@ -161,9 +159,8 @@ const Index = () => {
     setIsDragging(false);
   }, []);
 
-  const handleAudioStateChange = useCallback((isPlaying: boolean, isMuted: boolean) => {
+  const handleAudioStateChange = useCallback((isPlaying: boolean) => {
     setIsAudioPlaying(isPlaying);
-    setAudioMuted(isMuted);
   }, []);
 
   if (!intelligentTranscription.isWebSpeechSupported()) {
@@ -241,26 +238,16 @@ const Index = () => {
                     </Select>
                   </div>
 
-                  {/* Audio & Format Options */}
-                  <div className="flex flex-col md:flex-row gap-6">
+                  {/* Format Options */}
+                  {useIntelligent && (
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="mute-audio" checked={muteAudio} 
-                                onCheckedChange={(checked) => setMuteAudio(checked === true)} />
-                      <label htmlFor="mute-audio" className="text-sm">
-                        Silenciar áudio durante transcrição
+                      <Checkbox id="auto-structure" checked={autoStructure} 
+                                onCheckedChange={(checked) => setAutoStructure(checked === true)} />
+                      <label htmlFor="auto-structure" className="text-sm">
+                        Adicionar estrutura automática
                       </label>
                     </div>
-
-                    {useIntelligent && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="auto-structure" checked={autoStructure} 
-                                  onCheckedChange={(checked) => setAutoStructure(checked === true)} />
-                        <label htmlFor="auto-structure" className="text-sm">
-                          Adicionar estrutura automática
-                        </label>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -358,7 +345,7 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Audio controls during processing - use the AudioControls component */}
+              {/* Audio controls during processing */}
               {audioUrl && (
                 <div className="mb-6 w-full max-w-md">
                   <AudioControls

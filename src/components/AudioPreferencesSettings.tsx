@@ -26,18 +26,6 @@ export const AudioPreferencesSettings: React.FC<AudioPreferencesSettingsProps> =
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Mute by Default */}
-        <div className="flex items-center justify-between">
-          <Label htmlFor="mute-default" className="text-sm font-light">
-            Silenciar durante transcrição
-          </Label>
-          <Switch
-            id="mute-default"
-            checked={preferences.muteByDefault}
-            onCheckedChange={(checked) => updatePreferences({ muteByDefault: checked })}
-          />
-        </div>
-
         {/* Auto Play */}
         <div className="flex items-center justify-between">
           <Label htmlFor="auto-play" className="text-sm font-light">
