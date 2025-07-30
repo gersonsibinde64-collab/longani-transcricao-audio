@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { TranscriptionService } from '@/utils/transcriptionService';
 
 export interface TranscriptionConfig {
   language: string;
@@ -36,60 +36,9 @@ export const useTranscription = () => {
     return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
   }, []);
 
-  const createTranscriptionRecord = async (data: Partial<TranscriptionResult>) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    const { data: transcription, error } = await supabase
-      .from('transcriptions')
-      .insert({
-        user_id: user.id,
-        title: data.title || 'Untitled Transcription',
-        file_name: data.fileName || 'audio.wav',
-        file_size: data.fileSize || 0,
-        language: data.language || 'pt-BR',
-        status: data.status || 'processing',
-        audio_file_url: data.audioFileUrl
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return transcription;
-  };
-
-  const updateTranscriptionRecord = async (id: string, updates: Partial<TranscriptionResult>) => {
-    // Map camelCase properties to snake_case for database
-    const dbUpdates: any = {};
-    
-    if (updates.status) dbUpdates.status = updates.status;
-    if (updates.transcribedText) dbUpdates.transcribed_text = updates.transcribedText;
-    if (updates.accuracyScore) dbUpdates.accuracy_score = updates.accuracyScore;
-    if (updates.wordCount) dbUpdates.word_count = updates.wordCount;
-    if (updates.durationSeconds) dbUpdates.duration_seconds = updates.durationSeconds;
-    if (updates.errorMessage) dbUpdates.error_message = updates.errorMessage;
-    if (updates.audioFileUrl) dbUpdates.audio_file_url = updates.audioFileUrl;
-
-    const { error } = await supabase
-      .from('transcriptions')
-      .update(dbUpdates)
-      .eq('id', id);
-
-    if (error) {
-      throw error;
-    }
-  };
-
   const transcribeAudio = useCallback(async (
     audioFile: File, 
-    config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true },
-    audioFileUrl?: string
+    config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true }
   ): Promise<TranscriptionResult> => {
     if (!isWebSpeechSupported()) {
       throw new Error('Web Speech API não é suportada neste navegador');
@@ -102,24 +51,34 @@ export const useTranscription = () => {
     setProgress(0);
 
     try {
+      // Upload audio file first
+      console.log('Uploading audio file...');
+      const audioFileUrl = await TranscriptionService.uploadAudioFile(audioFile);
+      console.log('Audio file uploaded:', audioFileUrl);
+
       // Create transcription record in database
-      const transcriptionRecord = await createTranscriptionRecord({
+      const transcriptionRecord = await TranscriptionService.createTranscription({
         title: audioFile.name.split('.')[0],
-        fileName: audioFile.name,
-        fileSize: audioFile.size,
+        file_name: audioFile.name,
+        file_size: audioFile.size,
         language: config.language,
         status: 'processing',
-        audioFileUrl: audioFileUrl
+        audio_file_url: audioFileUrl
       });
 
-      // Create audio element and URL
+      console.log('Transcription record created:', transcriptionRecord.id);
+
+      // Create audio element and URL for transcription
       const audioUrl = URL.createObjectURL(audioFile);
       const audio = new Audio(audioUrl);
       
       // Get audio duration
-      const duration = await new Promise<number>((resolve) => {
+      const duration = await new Promise<number>((resolve, reject) => {
         audio.addEventListener('loadedmetadata', () => {
           resolve(audio.duration);
+        });
+        audio.addEventListener('error', () => {
+          reject(new Error('Failed to load audio file'));
         });
         audio.load();
       });
@@ -142,7 +101,7 @@ export const useTranscription = () => {
             title: 'Transcrição iniciada',
             description: 'Processando áudio...',
           });
-          audio.play();
+          audio.play().catch(console.error);
         };
 
         recognition.onresult = (event) => {
@@ -151,13 +110,13 @@ export const useTranscription = () => {
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const result = event.results[i];
             if (result.isFinal) {
-              finalTranscript += result[0].transcript;
+              finalTranscript += result[0].transcript + ' ';
             } else {
               interim += result[0].transcript;
             }
           }
 
-          setTranscript(finalTranscript);
+          setTranscript(finalTranscript.trim());
           setInterimTranscript(interim);
 
           // Update progress based on time elapsed
@@ -170,11 +129,16 @@ export const useTranscription = () => {
           console.error('Erro na transcrição:', event.error);
           setError(`Erro na transcrição: ${event.error}`);
           
-          await updateTranscriptionRecord(transcriptionRecord.id, {
-            status: 'failed',
-            errorMessage: `Erro na transcrição: ${event.error}`
-          });
+          try {
+            await TranscriptionService.updateTranscription(transcriptionRecord.id, {
+              status: 'failed',
+              error_message: `Erro na transcrição: ${event.error}`
+            });
+          } catch (updateError) {
+            console.error('Error updating transcription status:', updateError);
+          }
 
+          setIsTranscribing(false);
           reject(new Error(`Erro na transcrição: ${event.error}`));
         };
 
@@ -182,7 +146,8 @@ export const useTranscription = () => {
           console.log('Transcrição finalizada');
           setProgress(100);
           
-          const wordCount = finalTranscript.trim().split(/\s+/).filter(word => word.length > 0).length;
+          const cleanTranscript = finalTranscript.trim();
+          const wordCount = cleanTranscript ? cleanTranscript.split(/\s+/).filter(word => word.length > 0).length : 0;
           const accuracyScore = Math.random() * 15 + 85; // Simulate accuracy between 85-100%
 
           const result: TranscriptionResult = {
@@ -192,7 +157,7 @@ export const useTranscription = () => {
             fileSize: transcriptionRecord.file_size,
             language: transcriptionRecord.language,
             status: 'completed',
-            transcribedText: finalTranscript,
+            transcribedText: cleanTranscript,
             accuracyScore: parseFloat(accuracyScore.toFixed(2)),
             wordCount,
             durationSeconds: Math.floor(duration),
@@ -200,13 +165,12 @@ export const useTranscription = () => {
           };
 
           try {
-            await updateTranscriptionRecord(transcriptionRecord.id, {
+            await TranscriptionService.updateTranscription(transcriptionRecord.id, {
               status: 'completed',
-              transcribedText: finalTranscript,
-              accuracyScore: result.accuracyScore,
-              wordCount: wordCount,
-              durationSeconds: Math.floor(duration),
-              audioFileUrl: audioFileUrl
+              transcribed_text: cleanTranscript,
+              accuracy_score: result.accuracyScore,
+              word_count: wordCount,
+              duration_seconds: Math.floor(duration)
             });
 
             toast({
@@ -230,6 +194,11 @@ export const useTranscription = () => {
         // Stop recognition when audio ends
         audio.onended = () => {
           recognition.stop();
+        };
+
+        audio.onerror = () => {
+          recognition.stop();
+          reject(new Error('Erro ao reproduzir áudio'));
         };
       });
 

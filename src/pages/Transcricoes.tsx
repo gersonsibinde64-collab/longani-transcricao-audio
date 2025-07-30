@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Play, MoreVertical, Plus } from "lucide-react";
@@ -20,12 +19,24 @@ export function Transcricoes() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const { data: transcriptions = [], isLoading, refetch } = useQuery({
+  const { data: transcriptions = [], isLoading, refetch, error: queryError } = useQuery({
     queryKey: ['transcriptions'],
     queryFn: TranscriptionService.getUserTranscriptions,
+    retry: (failureCount, error) => {
+      // Don't retry if it's an authentication error
+      if (error instanceof Error && error.message.includes('not authenticated')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta transcrição? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
     try {
       await TranscriptionService.deleteTranscription(id);
       toast({
@@ -34,9 +45,10 @@ export function Transcricoes() {
       });
       refetch();
     } catch (error) {
+      console.error('Error deleting transcription:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível excluir a transcrição.",
+        description: error instanceof Error ? error.message : "Não foi possível excluir a transcrição.",
         variant: "destructive",
       });
     }
@@ -44,6 +56,40 @@ export function Transcricoes() {
 
   const handleView = (id: string) => {
     navigate(`/transcricoes/${id}`);
+  };
+
+  const handleDownload = async (transcription: any) => {
+    if (!transcription.transcribed_text) {
+      toast({
+        title: "Erro",
+        description: "Esta transcrição não possui texto para download.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const blob = new Blob([transcription.transcribed_text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${transcription.title}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download concluído",
+        description: "A transcrição foi baixada com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível fazer o download da transcrição.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -135,8 +181,24 @@ export function Transcricoes() {
         </div>
       )}
 
+      {/* Error State */}
+      {queryError && !isLoading && (
+        <Card className="text-center py-8">
+          <CardContent>
+            <XCircle className="w-12 h-12 mx-auto mb-4 text-destructive" strokeWidth={1} />
+            <h3 className="text-lg font-normal mb-2">Erro ao carregar transcrições</h3>
+            <p className="text-muted-foreground mb-4">
+              {queryError instanceof Error ? queryError.message : 'Ocorreu um erro inesperado'}
+            </p>
+            <Button onClick={() => refetch()}>
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Empty State */}
-      {!isLoading && transcriptions.length === 0 && (
+      {!isLoading && !queryError && transcriptions.length === 0 && (
         <Card className="text-center py-8">
           <CardContent>
             <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" strokeWidth={1} />
@@ -153,7 +215,7 @@ export function Transcricoes() {
       )}
 
       {/* Transcriptions Grid */}
-      {!isLoading && transcriptions.length > 0 && (
+      {!isLoading && !queryError && transcriptions.length > 0 && (
         <div className="grid gap-standard">
           {transcriptions.map((transcription) => (
             <Card key={transcription.id} className="bg-white border-border card-shadow hover:card-shadow-lg transition-shadow duration-200">
@@ -237,7 +299,12 @@ export function Transcricoes() {
                       Visualizar
                     </Button>
                     {transcription.transcribed_text && (
-                      <Button variant="outline" size="sm" className="font-light hover-light-blue focus-blue">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="font-light hover-light-blue focus-blue"
+                        onClick={() => handleDownload(transcription)}
+                      >
                         <Download className="w-4 h-4 mr-2" strokeWidth={1} />
                         Baixar
                       </Button>
