@@ -58,8 +58,8 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         setIsPlaying(false);
       });
 
-      // Auto-play if preference is set
-      if (preferences.autoPlay && !isTranscribing) {
+      // Auto-play if preference is set and not transcribing with mute preference
+      if (preferences.autoPlay && !(isTranscribing && preferences.muteByDefault)) {
         audioRef.current.play().catch(console.error);
       }
     }
@@ -75,16 +75,17 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         audioRef.current = null;
       }
     };
-  }, [audioUrl, preferences.autoPlay, preferences.volume, isMuted, isTranscribing]);
+  }, [audioUrl, preferences.autoPlay, preferences.volume, isMuted, isTranscribing, preferences.muteByDefault]);
 
-  // Update parent component when audio state changes
+  // Update parent component when audio state changes (for display purposes only)
   useEffect(() => {
     onAudioStateChange?.(isPlaying, isMuted);
   }, [isPlaying, isMuted, onAudioStateChange]);
 
-  // Handle mute during transcription
+  // Handle mute during transcription - only affects audio playback, not transcription
   useEffect(() => {
-    if (isTranscribing && preferences.muteByDefault && audioRef.current) {
+    if (isTranscribing && preferences.muteByDefault && audioRef.current && !isMuted) {
+      // Only mute if user hasn't manually unmuted and preference is set
       audioRef.current.muted = true;
       setIsMuted(true);
     }
@@ -104,6 +105,7 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
     if (!audioRef.current) return;
 
     const newMutedState = !isMuted;
+    // This only affects audio playback, transcription continues independently
     audioRef.current.muted = newMutedState;
     setIsMuted(newMutedState);
   }, [isMuted]);
@@ -142,7 +144,6 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
               variant="outline"
               size="icon"
               onClick={togglePlayPause}
-              disabled={isTranscribing && !preferences.autoPlay}
               className="h-10 w-10"
             >
               {isPlaying ? (
@@ -157,6 +158,7 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
               size="icon"
               onClick={toggleMute}
               className={`h-10 w-10 ${isMuted ? 'text-red-500' : 'text-primary'}`}
+              title={isMuted ? 'Activar som do áudio' : 'Silenciar áudio'}
             >
               {isMuted ? (
                 <VolumeX className="w-5 h-5" />
@@ -166,7 +168,7 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
             </Button>
 
             <span className="text-sm font-light text-muted-foreground">
-              {isMuted ? '🔇 Silenciado' : '🔊 Com som'}
+              {isMuted ? '🔇 Áudio silenciado' : '🔊 Áudio com som'}
             </span>
           </div>
 
@@ -204,12 +206,15 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
           </div>
         )}
 
-        {/* Transcription Status */}
+        {/* Transcription Status - clarify that transcription continues */}
         {isTranscribing && (
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              {isMuted ? 'Transcrevendo silenciosamente...' : 'Transcrevendo com áudio...'}
+              🎯 Transcrevendo... {isMuted ? '(áudio silenciado)' : '(com áudio)'}
             </span>
+            <p className="text-xs text-muted-foreground mt-1 opacity-75">
+              A transcrição continua independentemente do estado do áudio
+            </p>
           </div>
         )}
       </CardContent>
