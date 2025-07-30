@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Play, MoreVertical } from "lucide-react";
@@ -50,30 +49,30 @@ export function Transcricoes() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-standard">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-light text-foreground">Transcrições</h1>
+          <h1 className="text-3xl font-normal text-foreground">Transcrições</h1>
           <p className="text-muted-foreground mt-2 font-light">
             Gerencie todas as suas transcrições de áudio
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 font-light">
-          <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
+        <Button className="bg-primary hover:bg-primary/90 font-light focus-blue">
+          <FileText className="w-4 h-4 mr-2" strokeWidth={1} />
           Nova Transcrição
         </Button>
       </div>
 
       {/* Transcriptions Grid */}
-      <div className="grid gap-6">
+      <div className="grid gap-standard">
         {transcriptions.map((transcription) => (
-          <Card key={transcription.id} className="bg-white border-border shadow-card hover:shadow-card-lg transition-shadow">
-            <CardHeader>
+          <Card key={transcription.id} className="bg-white border-border card-shadow hover:card-shadow-lg transition-shadow duration-200">
+            <CardHeader className="p-standard">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                    <FileText className="w-6 h-6 text-primary" strokeWidth={1} />
                   </div>
                   <div>
                     <CardTitle className="text-lg font-normal text-card-foreground">
@@ -87,21 +86,21 @@ export function Transcricoes() {
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="w-4 h-4" strokeWidth={1.5} />
+                    <Button variant="ghost" size="icon" className="hover-light-blue focus-blue">
+                      <MoreVertical className="w-4 h-4" strokeWeight={1} />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white shadow-card-lg">
-                    <DropdownMenuItem className="font-light">
-                      <Play className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                  <DropdownMenuContent align="end" className="bg-white card-shadow">
+                    <DropdownMenuItem className="font-light hover-light-blue">
+                      <Play className="w-4 h-4 mr-2" strokeWidth={1} />
                       Reproduzir
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="font-light">
-                      <Download className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                    <DropdownMenuItem className="font-light hover-light-blue">
+                      <Download className="w-4 h-4 mr-2" strokeWidth={1} />
                       Baixar
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="font-light">
-                      <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                    <DropdownMenuItem className="font-light hover-light-blue">
+                      <FileText className="w-4 h-4 mr-2" strokeWidth={1} />
                       Editar
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -109,7 +108,7 @@ export function Transcricoes() {
               </div>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="px-standard pb-standard">
               <div className="flex items-center justify-between">
                 <div className="flex gap-8">
                   <div>
@@ -124,21 +123,21 @@ export function Transcricoes() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-light">Precisão</p>
-                    <p className="font-light text-foreground">{transcription.accuracy}</p>
+                    <p className="font-kpi text-foreground">{transcription.accuracy}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground font-light">Palavras</p>
-                    <p className="font-light text-foreground">{transcription.wordCount.toLocaleString()}</p>
+                    <p className="font-kpi text-foreground">{transcription.wordCount.toLocaleString()}</p>
                   </div>
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="font-light">
-                    <Play className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                  <Button variant="outline" size="sm" className="font-light hover-light-blue focus-blue">
+                    <Play className="w-4 h-4 mr-2" strokeWidth={1} />
                     Reproduzir
                   </Button>
-                  <Button variant="outline" size="sm" className="font-light">
-                    <Download className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                  <Button variant="outline" size="sm" className="font-light hover-light-blue focus-blue">
+                    <Download className="w-4 h-4 mr-2" strokeWidth={1} />
                     Baixar
                   </Button>
                 </div>
