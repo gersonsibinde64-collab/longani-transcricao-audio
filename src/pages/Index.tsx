@@ -397,7 +397,7 @@ const Index = () => {
                     <span className="font-medium text-yellow-800">Ficheiro será dividido</span>
                   </div>
                   <p className="text-sm text-yellow-700 text-center">
-                    Áudio > 3min será processado em {totalChunks} partes sequenciais.
+                    Áudio {'>'}3min será processado em {totalChunks} partes sequenciais.
                     Cada parte será descarregada automaticamente após transcrição.
                   </p>
                 </div>
