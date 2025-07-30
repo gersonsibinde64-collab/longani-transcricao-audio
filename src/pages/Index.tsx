@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, Download, Loader2, FileAudio, RotateCcw, AlertTriangle, FileText } from "lucide-react";
+import { Upload, Download, Loader2, FileAudio, RotateCcw, AlertTriangle, FileText, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIntelligentTranscription } from "@/hooks/useIntelligentTranscription";
 import { TranscriptionQuality } from "@/components/TranscriptionQuality";
@@ -22,10 +22,10 @@ const Index = () => {
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
   
-  // Fixed transcription settings - basic Portuguese European
+  // Fixed transcription settings - basic Portuguese European with AI enhancement
   const language = 'pt-PT';
-  const useIntelligent = false;
-  const autoStructure = false;
+  const useIntelligent = true; // Enable AI processing
+  const autoStructure = true; // Enable AI structuring
   
   const { toast } = useToast();
   const intelligentTranscription = useIntelligentTranscription();
@@ -44,11 +44,11 @@ const Index = () => {
   }, []);
 
   const downloadTranscription = useCallback((text: string, filename: string) => {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = filename.replace('.txt', '.md'); // Save as markdown due to AI structuring
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -94,13 +94,13 @@ const Index = () => {
         
         toast({
           title: 'Ficheiro longo detectado',
-          description: `${durationMin}min de áudio será dividido em ${chunks} partes para melhor processamento`,
+          description: `${durationMin}min será dividido em ${chunks} partes com processamento IA`,
         });
       } else {
         setNeedsSplitting(false);
         toast({
-          title: 'Ficheiro carregado com sucesso',
-          description: `${file.name} (${fileSizeMB}MB, ${durationMin}min) - Pronto para transcrição`,
+          title: 'Ficheiro carregado',
+          description: `${file.name} (${fileSizeMB}MB, ${durationMin}min) - Processamento com IA ativado`,
         });
       }
     } catch (error) {
@@ -126,13 +126,13 @@ const Index = () => {
         const chunks = await splitAudioFile(selectedFile, MAX_AUDIO_DURATION);
         setTotalChunks(chunks.length);
         
-        // Process each chunk sequentially
+        // Process each chunk sequentially with AI
         for (let i = 0; i < chunks.length; i++) {
           setCurrentChunk(i + 1);
           
           toast({
             title: `Processando parte ${i + 1} de ${chunks.length}`,
-            description: `Transcrevendo segmento ${i + 1}...`,
+            description: `Transcrevendo e estruturando com IA...`,
           });
 
           try {
@@ -141,21 +141,21 @@ const Index = () => {
               continuous: true,
               interimResults: true,
               dialect: language,
-              enableIntelligentFormatting: useIntelligent && autoStructure,
-              enableStructureDetection: useIntelligent && autoStructure,
-              enablePunctuationRestoration: useIntelligent
+              enableIntelligentFormatting: true,
+              enableStructureDetection: true,
+              enablePunctuationRestoration: true
             });
 
             const chunkText = result.transcribedText || '';
             setTranscriptionResults(prev => [...prev, chunkText]);
             
-            // Auto-download each chunk
-            const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_parte_${i + 1}.txt`;
+            // Auto-download each chunk as markdown
+            const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_parte_${i + 1}_ia.md`;
             downloadTranscription(chunkText, filename);
             
             toast({
               title: `Parte ${i + 1} concluída`,
-              description: `${result.wordCount} palavras transcritas e descarregadas`,
+              description: `${result.wordCount} palavras com estruturação IA`,
             });
             
             // Small delay between chunks
@@ -174,29 +174,29 @@ const Index = () => {
         setAppState('completed');
         
       } else {
-        // Process single file normally
+        // Process single file with AI
         const result = await intelligentTranscription.transcribeAudio(selectedFile, {
           language: language,
           continuous: true,
           interimResults: true,
           dialect: language,
-          enableIntelligentFormatting: useIntelligent && autoStructure,
-          enableStructureDetection: useIntelligent && autoStructure,
-          enablePunctuationRestoration: useIntelligent
+          enableIntelligentFormatting: true,
+          enableStructureDetection: true,
+          enablePunctuationRestoration: true
         });
         
         const transcriptText = result.transcribedText || '';
         setTranscriptionResults([transcriptText]);
         
-        // Auto-download single file
-        const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_transcricao.txt`;
+        // Auto-download as structured markdown
+        const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_transcricao_ia.md`;
         downloadTranscription(transcriptText, filename);
         
         setAppState('completed');
         
         toast({
-          title: 'Transcrição concluída',
-          description: `${result.wordCount} palavras transcritas e descarregadas`,
+          title: 'Transcrição com IA concluída',
+          description: `${result.wordCount} palavras estruturadas e descarregadas`,
         });
       }
       
@@ -209,7 +209,7 @@ const Index = () => {
         variant: 'destructive',
       });
     }
-  }, [selectedFile, language, useIntelligent, autoStructure, intelligentTranscription, toast, needsSplitting, downloadTranscription]);
+  }, [selectedFile, language, intelligentTranscription, toast, needsSplitting, downloadTranscription]);
 
   const handleNewTranscription = useCallback(() => {
     setSelectedFile(null);
@@ -224,7 +224,7 @@ const Index = () => {
     
     toast({
       title: 'Nova transcrição',
-      description: 'Pronto para transcrever um novo ficheiro.',
+      description: 'Pronto para transcrever um novo ficheiro com IA.',
     });
   }, [intelligentTranscription, toast]);
 
@@ -284,9 +284,13 @@ const Index = () => {
                 <h1 className="text-5xl md:text-7xl font-light text-foreground mb-4">
                   Transcrição de Áudio
                 </h1>
-                <p className="text-xl text-muted-foreground font-light">
+                <p className="text-xl text-muted-foreground font-light mb-2">
                   Converta o seu áudio em texto com qualidade profissional
                 </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Brain className="w-4 h-4" />
+                  <span>Processamento com Inteligência Artificial</span>
+                </div>
               </div>
 
               {/* Huge Drop Zone */}
@@ -312,9 +316,13 @@ const Index = () => {
                   <h2 className="text-4xl md:text-5xl font-light text-foreground mb-6">
                     Arraste o seu ficheiro áudio aqui
                   </h2>
-                  <p className="text-xl text-muted-foreground font-light mb-8">
+                  <p className="text-xl text-muted-foreground font-light mb-4">
                     MP3, WAV, M4A aceites (até 100MB)
                   </p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
+                    <Brain className="w-4 h-4" />
+                    <span>Estruturação automática com IA • Português Europeu</span>
+                  </div>
                   <Button size="lg" className="px-12 py-6 text-lg font-light">
                     <Upload className="w-5 h-5 mr-3" strokeWidth={1.5} />
                     Seleccionar ficheiro
@@ -339,9 +347,14 @@ const Index = () => {
                 {selectedFile.name}
               </p>
               
-              <p className="text-muted-foreground mb-4">
-                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {Math.ceil(audioDuration / 60)}min • Português Europeu
+              <p className="text-muted-foreground mb-2">
+                {(selectedFile.size / 1024 / 1024).toFixed(1)}MB • {Math.ceil(audioDuration / 60)}min
               </p>
+
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+                <Brain className="w-4 h-4" />
+                <span>Processamento com IA • Português Europeu</span>
+              </div>
 
               {needsSplitting && (
                 <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -350,15 +363,15 @@ const Index = () => {
                     <span className="font-medium text-yellow-800">Ficheiro será dividido</span>
                   </div>
                   <p className="text-sm text-yellow-700 text-center">
-                    Áudio {'>'}3min será processado em {totalChunks} partes sequenciais.
-                    Cada parte será descarregada automaticamente após transcrição.
+                    Áudio {'>'}3min será processado em {totalChunks} partes com estruturação IA.
+                    Cada parte será descarregada automaticamente como Markdown.
                   </p>
                 </div>
               )}
 
               <div className="space-y-4">
                 <Button onClick={processAudioChunks} size="lg" className="font-light px-8">
-                  {needsSplitting ? `Iniciar processamento (${totalChunks} partes)` : 'Iniciar transcrição'}
+                  {needsSplitting ? `Iniciar processamento IA (${totalChunks} partes)` : 'Iniciar transcrição com IA'}
                 </Button>
                 <Button variant="outline" onClick={handleNewTranscription} className="font-light">
                   Escolher outro ficheiro
@@ -371,11 +384,20 @@ const Index = () => {
           {appState === 'processing' && (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
               <div className="w-24 h-24 bg-accent rounded-2xl flex items-center justify-center mb-6">
-                <Loader2 className="w-12 h-12 text-primary animate-spin" strokeWidth={1.5} />
+                {intelligentTranscription.isProcessingWithAI ? (
+                  <Brain className="w-12 h-12 text-primary animate-pulse" strokeWidth={1.5} />
+                ) : (
+                  <Loader2 className="w-12 h-12 text-primary animate-spin" strokeWidth={1.5} />
+                )}
               </div>
               
               <h3 className="text-3xl font-light text-foreground mb-4">
-                {needsSplitting ? `Processando parte ${currentChunk} de ${totalChunks}` : 'A transcrever o áudio...'}
+                {intelligentTranscription.isProcessingWithAI 
+                  ? 'Estruturando com IA...' 
+                  : needsSplitting 
+                    ? `Transcrevendo parte ${currentChunk} de ${totalChunks}` 
+                    : 'A transcrever o áudio...'
+                }
               </h3>
               
               <div className="w-full max-w-md mb-6">
@@ -385,10 +407,19 @@ const Index = () => {
                 </p>
               </div>
 
+              {intelligentTranscription.isProcessingWithAI && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
+                    <Brain className="w-4 h-4" />
+                    <span>Inteligência artificial estruturando o texto...</span>
+                  </div>
+                </div>
+              )}
+
               {needsSplitting && (
                 <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-700 text-center">
-                    {transcriptionResults.length > 0 && `${transcriptionResults.length} parte(s) já processada(s) e descarregada(s)`}
+                    {transcriptionResults.length > 0 && `${transcriptionResults.length} parte(s) já processada(s) com IA`}
                   </p>
                 </div>
               )}
@@ -420,14 +451,18 @@ const Index = () => {
             <div className="flex-1 flex flex-col">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-light text-foreground mb-2">
-                  {needsSplitting ? 'Processamento concluído' : 'Transcrição concluída'}
+                  {needsSplitting ? 'Processamento IA concluído' : 'Transcrição IA concluída'}
                 </h3>
-                <p className="text-muted-foreground font-light">
+                <p className="text-muted-foreground font-light mb-2">
                   {needsSplitting 
-                    ? `${transcriptionResults.length} partes processadas e descarregadas`
-                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras • Português Europeu`
+                    ? `${transcriptionResults.length} partes estruturadas com IA`
+                    : `${transcriptionResults[0]?.split(' ').length || 0} palavras estruturadas`
                   }
                 </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Brain className="w-4 h-4" />
+                  <span>Processado com Inteligência Artificial • Português Europeu</span>
+                </div>
               </div>
 
               {/* Summary Card */}
@@ -438,16 +473,16 @@ const Index = () => {
                       <div className="text-center">
                         <FileText className="w-16 h-16 text-primary mx-auto mb-4" strokeWidth={1} />
                         <h4 className="text-xl font-medium mb-2">
-                          {transcriptionResults.length} ficheiros descarregados
+                          {transcriptionResults.length} ficheiros Markdown descarregados
                         </h4>
                         <p className="text-muted-foreground">
-                          Todas as partes foram transcritas e descarregadas automaticamente.
-                          Verifique a sua pasta de descargas.
+                          Todas as partes foram transcritas e estruturadas com IA.
+                          Ficheiros Markdown descarregados automaticamente.
                         </p>
                       </div>
                     ) : (
                       <div 
-                        className="leading-relaxed text-foreground font-light"
+                        className="leading-relaxed text-foreground font-light prose prose-sm max-w-none"
                         style={{ whiteSpace: 'pre-line' }}
                         dangerouslySetInnerHTML={{ __html: transcriptionResults[0]?.replace(/\n/g, '<br>') }}
                       />

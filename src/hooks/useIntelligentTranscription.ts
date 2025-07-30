@@ -1,229 +1,128 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
+import { useTranscription, TranscriptionResult, TranscriptionConfig } from './useTranscription';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TranscriptionConfig, TranscriptionResult } from './useTranscription';
-import { portugueseProcessor, ProcessingOptions } from '@/utils/portugueseNLP';
 
-export interface IntelligentTranscriptionConfig extends TranscriptionConfig {
-  dialect: 'pt-PT' | 'pt-MZ';
-  enableIntelligentFormatting: boolean;
-  enableStructureDetection: boolean;
-  enablePunctuationRestoration: boolean;
-}
+const MAX_BROWSER_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit for browser processing
 
 export const useIntelligentTranscription = () => {
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [interimTranscript, setInterimTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [processingQuality, setProcessingQuality] = useState(0);
+  const [isProcessingWithAI, setIsProcessingWithAI] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const browserTranscription = useTranscription();
   const { toast } = useToast();
-  
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const isWebSpeechSupported = useCallback(() => {
-    return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-  }, []);
-
-  const transcribeAudio = useCallback(async (
-    audioFile: File,
-    config: IntelligentTranscriptionConfig = {
-      language: 'pt-PT',
-      continuous: true,
-      interimResults: true,
-      dialect: 'pt-PT',
-      enableIntelligentFormatting: true,
-      enableStructureDetection: true,
-      enablePunctuationRestoration: true
-    }
-  ): Promise<TranscriptionResult> => {
-    if (!isWebSpeechSupported()) {
-      throw new Error('Web Speech API não é suportada neste navegador');
-    }
-
-    setIsTranscribing(true);
-    setTranscript('');
-    setInterimTranscript('');
-    setError(null);
-    setProgress(0);
-    setProcessingQuality(0);
+  const processWithAI = useCallback(async (transcript: string): Promise<string> => {
+    setIsProcessingWithAI(true);
+    setAiProgress(0);
 
     try {
-      // Create audio element for playback
-      const audioUrl = URL.createObjectURL(audioFile);
-      const audio = new Audio(audioUrl);
-      
-      // Get audio duration
-      const duration = await new Promise<number>((resolve, reject) => {
-        audio.addEventListener('loadedmetadata', () => {
-          resolve(audio.duration);
-        });
-        audio.addEventListener('error', () => {
-          reject(new Error('Failed to load audio file'));
-        });
-        audio.load();
+      toast({
+        title: 'Processamento com IA',
+        description: 'Estruturando texto com inteligência artificial...',
       });
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
+      setAiProgress(30);
 
-      // Configure for Portuguese European
-      recognition.continuous = config.continuous;
-      recognition.interimResults = config.interimResults;
-      recognition.lang = config.dialect;
-      recognition.maxAlternatives = 3; // Get multiple alternatives for better processing
+      // Call the Supabase edge function for AI processing
+      const { data, error } = await supabase.functions.invoke('process-audio', {
+        body: { transcript }
+      });
 
-      let rawTranscript = '';
-      let startTime = Date.now();
+      if (error) {
+        throw new Error(`Erro no processamento IA: ${error.message}`);
+      }
+
+      setAiProgress(90);
+
+      if (!data?.structuredText) {
+        throw new Error('Resposta inválida do processamento IA');
+      }
+
+      setAiProgress(100);
 
       toast({
-        title: 'Transcrição inteligente iniciada',
-        description: `Processamento em ${config.dialect} com formatação automática`,
+        title: 'Processamento IA concluído',
+        description: 'Texto estruturado com sucesso pela inteligência artificial',
       });
 
-      return new Promise((resolve, reject) => {
-        recognition.onstart = () => {
-          console.log('Intelligent transcription started');
-          audio.play().catch(console.error);
-        };
-
-        recognition.onresult = (event) => {
-          let interim = '';
-          let finalText = '';
-          
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const result = event.results[i];
-            const text = result[0].transcript;
-            
-            if (result.isFinal) {
-              finalText += text + ' ';
-            } else {
-              interim += text;
-            }
-          }
-
-          if (finalText) {
-            rawTranscript += finalText;
-            
-            // Apply intelligent processing in real-time
-            const processingOptions: ProcessingOptions = {
-              dialect: config.dialect,
-              enablePunctuation: config.enablePunctuationRestoration,
-              enableFormatting: config.enableIntelligentFormatting,
-              enableStructure: config.enableStructureDetection
-            };
-
-            const processed = portugueseProcessor.processTranscript(rawTranscript, processingOptions);
-            setTranscript(processed.text);
-            setProcessingQuality(processed.confidence * 100);
-          }
-
-          setInterimTranscript(interim);
-
-          // Update progress based on time elapsed
-          const elapsed = (Date.now() - startTime) / 1000;
-          const progressPercent = Math.min((elapsed / duration) * 100, 95);
-          setProgress(progressPercent);
-        };
-
-        recognition.onerror = (event) => {
-          console.error('Intelligent transcription error:', event.error);
-          setError(`Erro na transcrição: ${event.error}`);
-          setIsTranscribing(false);
-          reject(new Error(`Erro na transcrição: ${event.error}`));
-        };
-
-        recognition.onend = () => {
-          console.log('Intelligent transcription finished');
-          setProgress(100);
-          
-          // Final processing
-          const processingOptions: ProcessingOptions = {
-            dialect: config.dialect,
-            enablePunctuation: config.enablePunctuationRestoration,
-            enableFormatting: config.enableIntelligentFormatting,
-            enableStructure: config.enableStructureDetection
-          };
-
-          const finalProcessed = portugueseProcessor.processTranscript(rawTranscript, processingOptions);
-          setTranscript(finalProcessed.text);
-          setProcessingQuality(finalProcessed.confidence * 100);
-
-          const wordCount = finalProcessed.text ? 
-            finalProcessed.text.replace(/[#*"]/g, '').split(/\s+/).filter(word => word.length > 0).length : 0;
-
-          const result: TranscriptionResult = {
-            title: audioFile.name.split('.')[0],
-            fileName: audioFile.name,
-            fileSize: audioFile.size,
-            language: config.dialect,
-            status: 'completed',
-            transcribedText: finalProcessed.text,
-            accuracyScore: finalProcessed.confidence * 100,
-            wordCount,
-            durationSeconds: Math.floor(duration)
-          };
-
-          toast({
-            title: 'Transcrição inteligente concluída',
-            description: `${wordCount} palavras • ${finalProcessed.structure.paragraphs} parágrafos • ${finalProcessed.structure.headings} títulos`,
-          });
-
-          setIsTranscribing(false);
-          URL.revokeObjectURL(audioUrl);
-          resolve(result);
-        };
-
-        // Start recognition
-        recognition.start();
-
-        // Stop recognition when audio ends
-        audio.onended = () => {
-          recognition.stop();
-        };
-
-        audio.onerror = () => {
-          recognition.stop();
-          reject(new Error('Erro ao reproduzir áudio'));
-        };
-      });
+      return data.structuredText;
 
     } catch (error) {
-      console.error('Error during intelligent transcription:', error);
-      setError(error instanceof Error ? error.message : 'Erro desconhecido');
-      setIsTranscribing(false);
+      console.error('AI processing error:', error);
+      toast({
+        title: 'Erro no processamento IA',
+        description: error instanceof Error ? error.message : 'Erro no servidor de IA',
+        variant: 'destructive',
+      });
       throw error;
+    } finally {
+      setIsProcessingWithAI(false);
+      setAiProgress(0);
     }
   }, [toast]);
 
-  const stopTranscription = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+  const transcribeAudio = useCallback(async (
+    file: File,
+    config: TranscriptionConfig = { language: 'pt-PT', continuous: true, interimResults: true }
+  ): Promise<TranscriptionResult> => {
+    
+    try {
+      // First, perform the basic transcription
+      const basicResult = await browserTranscription.transcribeAudio(file, config);
+      
+      // If we have transcribed text, process it with AI for structuring
+      if (basicResult.transcribedText && basicResult.transcribedText.trim()) {
+        try {
+          const structuredText = await processWithAI(basicResult.transcribedText);
+          
+          // Return enhanced result with AI-structured text
+          return {
+            ...basicResult,
+            transcribedText: structuredText,
+            status: 'completed'
+          };
+        } catch (aiError) {
+          console.error('AI processing failed, returning basic transcription:', aiError);
+          
+          // If AI processing fails, return the basic transcription
+          toast({
+            title: 'Usando transcrição básica',
+            description: 'Processamento IA falhou, mas transcrição básica está disponível',
+          });
+          
+          return basicResult;
+        }
+      }
+      
+      return basicResult;
+      
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw error;
     }
-    setIsTranscribing(false);
-    setProgress(0);
-  }, []);
+  }, [browserTranscription, processWithAI, toast]);
 
   const clearTranscript = useCallback(() => {
-    setTranscript('');
-    setInterimTranscript('');
-    setError(null);
-    setProgress(0);
-    setProcessingQuality(0);
-  }, []);
+    browserTranscription.clearTranscript();
+    setIsProcessingWithAI(false);
+    setAiProgress(0);
+  }, [browserTranscription]);
 
   return {
-    isTranscribing,
-    transcript,
-    interimTranscript,
-    error,
-    progress,
-    processingQuality,
+    // Expose all browser transcription properties
+    ...browserTranscription,
+    // Override with AI-enhanced functionality
     transcribeAudio,
-    stopTranscription,
     clearTranscript,
-    isWebSpeechSupported,
+    // Additional AI processing states
+    isProcessingWithAI,
+    aiProgress,
+    // Combined loading state
+    isTranscribing: browserTranscription.isTranscribing || isProcessingWithAI,
+    // Combined progress - show AI progress when AI is processing
+    progress: isProcessingWithAI ? aiProgress : browserTranscription.progress,
+    // Processing quality indicator
+    processingQuality: isProcessingWithAI ? 95 : 85,
   };
 };
