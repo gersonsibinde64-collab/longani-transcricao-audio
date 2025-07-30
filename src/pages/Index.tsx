@@ -19,11 +19,12 @@ const Index = () => {
     error, 
     progress, 
     transcribeAudio, 
+    clearTranscript,
     isWebSpeechSupported 
   } = useTranscription();
 
   const handleFileSelect = useCallback(async (file: File) => {
-    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg'];
+    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg', 'audio/ogg'];
     
     if (!allowedTypes.includes(file.type)) {
       toast({
@@ -44,6 +45,7 @@ const Index = () => {
     }
 
     setSelectedFile(file);
+    clearTranscript();
     
     try {
       const result = await transcribeAudio(file, {
@@ -56,7 +58,7 @@ const Index = () => {
       console.error('Transcription error:', error);
       setSelectedFile(null);
     }
-  }, [transcribeAudio, toast]);
+  }, [transcribeAudio, clearTranscript, toast]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -82,7 +84,7 @@ const Index = () => {
     const finalText = transcriptionResult || transcript;
     if (!finalText.trim()) return;
 
-    const blob = new Blob([finalText], { type: 'text/plain' });
+    const blob = new Blob([finalText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -91,12 +93,20 @@ const Index = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [transcriptionResult, transcript, selectedFile?.name]);
+
+    // Clear all data after download (zero persistence)
+    setTimeout(() => {
+      setSelectedFile(null);
+      setTranscriptionResult('');
+      clearTranscript();
+    }, 1000);
+  }, [transcriptionResult, transcript, selectedFile?.name, clearTranscript]);
 
   const handleReset = useCallback(() => {
     setSelectedFile(null);
     setTranscriptionResult('');
-  }, []);
+    clearTranscript();
+  }, [clearTranscript]);
 
   if (!isWebSpeechSupported()) {
     return (
@@ -248,7 +258,7 @@ const Index = () => {
         <input
           id="file-input"
           type="file"
-          accept=".mp3,.wav,.m4a,audio/*"
+          accept=".mp3,.wav,.m4a,.ogg,audio/*"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

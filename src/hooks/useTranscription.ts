@@ -1,7 +1,6 @@
 
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { TranscriptionService } from '@/utils/transcriptionService';
 
 export interface TranscriptionConfig {
   language: string;
@@ -10,7 +9,6 @@ export interface TranscriptionConfig {
 }
 
 export interface TranscriptionResult {
-  id?: string;
   title: string;
   fileName: string;
   fileSize: number;
@@ -21,7 +19,6 @@ export interface TranscriptionResult {
   wordCount?: number;
   durationSeconds?: number;
   errorMessage?: string;
-  audioFileUrl?: string;
 }
 
 export const useTranscription = () => {
@@ -51,24 +48,7 @@ export const useTranscription = () => {
     setProgress(0);
 
     try {
-      // Upload audio file first
-      console.log('Uploading audio file...');
-      const audioFileUrl = await TranscriptionService.uploadAudioFile(audioFile);
-      console.log('Audio file uploaded:', audioFileUrl);
-
-      // Create transcription record in database
-      const transcriptionRecord = await TranscriptionService.createTranscription({
-        title: audioFile.name.split('.')[0],
-        file_name: audioFile.name,
-        file_size: audioFile.size,
-        language: config.language,
-        status: 'processing',
-        audio_file_url: audioFileUrl
-      });
-
-      console.log('Transcription record created:', transcriptionRecord.id);
-
-      // Create audio element and URL for transcription
+      // Create audio element for playback
       const audioUrl = URL.createObjectURL(audioFile);
       const audio = new Audio(audioUrl);
       
@@ -125,24 +105,14 @@ export const useTranscription = () => {
           setProgress(progressPercent);
         };
 
-        recognition.onerror = async (event) => {
+        recognition.onerror = (event) => {
           console.error('Erro na transcrição:', event.error);
           setError(`Erro na transcrição: ${event.error}`);
-          
-          try {
-            await TranscriptionService.updateTranscription(transcriptionRecord.id, {
-              status: 'failed',
-              error_message: `Erro na transcrição: ${event.error}`
-            });
-          } catch (updateError) {
-            console.error('Error updating transcription status:', updateError);
-          }
-
           setIsTranscribing(false);
           reject(new Error(`Erro na transcrição: ${event.error}`));
         };
 
-        recognition.onend = async () => {
+        recognition.onend = () => {
           console.log('Transcrição finalizada');
           setProgress(100);
           
@@ -151,41 +121,25 @@ export const useTranscription = () => {
           const accuracyScore = Math.random() * 15 + 85; // Simulate accuracy between 85-100%
 
           const result: TranscriptionResult = {
-            id: transcriptionRecord.id,
-            title: transcriptionRecord.title,
-            fileName: transcriptionRecord.file_name,
-            fileSize: transcriptionRecord.file_size,
-            language: transcriptionRecord.language,
+            title: audioFile.name.split('.')[0],
+            fileName: audioFile.name,
+            fileSize: audioFile.size,
+            language: config.language,
             status: 'completed',
             transcribedText: cleanTranscript,
             accuracyScore: parseFloat(accuracyScore.toFixed(2)),
             wordCount,
-            durationSeconds: Math.floor(duration),
-            audioFileUrl: audioFileUrl
+            durationSeconds: Math.floor(duration)
           };
 
-          try {
-            await TranscriptionService.updateTranscription(transcriptionRecord.id, {
-              status: 'completed',
-              transcribed_text: cleanTranscript,
-              accuracy_score: result.accuracyScore,
-              word_count: wordCount,
-              duration_seconds: Math.floor(duration)
-            });
+          toast({
+            title: 'Transcrição concluída',
+            description: `${wordCount} palavras transcritas com ${accuracyScore.toFixed(1)}% de precisão`,
+          });
 
-            toast({
-              title: 'Transcrição concluída',
-              description: `${wordCount} palavras transcritas com ${accuracyScore.toFixed(1)}% de precisão`,
-            });
-
-            resolve(result);
-          } catch (updateError) {
-            console.error('Erro ao atualizar transcrição:', updateError);
-            reject(updateError);
-          } finally {
-            setIsTranscribing(false);
-            URL.revokeObjectURL(audioUrl);
-          }
+          setIsTranscribing(false);
+          URL.revokeObjectURL(audioUrl);
+          resolve(result);
         };
 
         // Start recognition
@@ -215,6 +169,13 @@ export const useTranscription = () => {
     setProgress(0);
   }, []);
 
+  const clearTranscript = useCallback(() => {
+    setTranscript('');
+    setInterimTranscript('');
+    setError(null);
+    setProgress(0);
+  }, []);
+
   return {
     isTranscribing,
     transcript,
@@ -223,6 +184,7 @@ export const useTranscription = () => {
     progress,
     transcribeAudio,
     stopTranscription,
+    clearTranscript,
     isWebSpeechSupported
   };
 };
