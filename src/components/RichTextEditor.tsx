@@ -8,17 +8,12 @@ import { Button } from '@/components/ui/button';
 import { 
   Bold, 
   Italic, 
-  Underline,
   Save,
-  Download,
-  FileText,
-  FileImage,
   Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TranscriptionService } from '@/utils/transcriptionService';
-import jsPDF from 'jspdf';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { ExportButtons } from './ExportButtons';
 
 interface RichTextEditorProps {
   transcriptionId: string;
@@ -26,6 +21,13 @@ interface RichTextEditorProps {
   onContentChange?: (content: string) => void;
   onTimestampClick?: (time: number) => void;
   className?: string;
+  metadata?: {
+    title?: string;
+    duration?: number;
+    wordCount?: number;
+    accuracy?: number;
+    createdAt?: string;
+  };
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -33,7 +35,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   initialContent = '',
   onContentChange,
   onTimestampClick,
-  className = ''
+  className = '',
+  metadata
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -94,94 +97,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     saveContent();
   };
 
-  const exportAsTxt = () => {
-    if (!editor) return;
-    
-    const text = editor.getText();
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcricao-${transcriptionId}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const exportAsPdf = () => {
-    if (!editor) return;
-    
-    const text = editor.getText();
-    const doc = new jsPDF();
-    
-    // Split text into lines that fit the page width
-    const lines = doc.splitTextToSize(text, 180);
-    let yPosition = 20;
-    
-    doc.setFontSize(16);
-    doc.text('Transcrição', 20, yPosition);
-    yPosition += 10;
-    
-    doc.setFontSize(12);
-    lines.forEach((line: string) => {
-      if (yPosition > 280) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      doc.text(line, 20, yPosition);
-      yPosition += 7;
-    });
-    
-    doc.save(`transcricao-${transcriptionId}.pdf`);
-  };
-
-  const exportAsDocx = async () => {
-    if (!editor) return;
-    
-    const text = editor.getText();
-    
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: 'Transcrição',
-                  bold: true,
-                  size: 32,
-                }),
-              ],
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: text,
-                  size: 24,
-                }),
-              ],
-            }),
-          ],
-        },
-      ],
-    });
-
-    const buffer = await Packer.toBuffer(doc);
-    const blob = new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcricao-${transcriptionId}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const addTimestamp = () => {
     if (!editor) return;
     
@@ -204,6 +119,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   if (!editor) {
     return <div>Carregando editor...</div>;
   }
+
+  const currentContent = editor.getHTML();
+  const exportTitle = metadata?.title || `Transcrição ${transcriptionId}`;
 
   return (
     <Card className={className}>
@@ -280,35 +198,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Export Options */}
         <div className="flex items-center justify-between pt-4 border-t">
           <span className="text-sm text-muted-foreground">Exportar como:</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportAsTxt}
-              className="h-8"
-            >
-              <FileText className="w-3 h-3 mr-1" />
-              TXT
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportAsDocx}
-              className="h-8"
-            >
-              <FileImage className="w-3 h-3 mr-1" />
-              DOCX
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportAsPdf}
-              className="h-8"
-            >
-              <Download className="w-3 h-3 mr-1" />
-              PDF
-            </Button>
-          </div>
+          <ExportButtons
+            title={exportTitle}
+            content={currentContent}
+            metadata={metadata}
+          />
         </div>
       </CardContent>
     </Card>

@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Download, Edit, Eye } from 'lucide-react';
+import { Copy, Edit, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RichTextEditor } from './RichTextEditor';
+import { ExportButtons } from './ExportButtons';
 
 interface TranscriptionTextProps {
   text?: string;
@@ -13,6 +14,13 @@ interface TranscriptionTextProps {
   onWordClick?: (time: number) => void;
   onTimestampClick?: (time: number) => void;
   className?: string;
+  metadata?: {
+    title?: string;
+    duration?: number;
+    wordCount?: number;
+    accuracy?: number;
+    createdAt?: string;
+  };
 }
 
 export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
@@ -21,7 +29,8 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
   currentTime = 0,
   onWordClick,
   onTimestampClick,
-  className = ''
+  className = '',
+  metadata
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(text || '');
@@ -80,21 +89,6 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
     }
   };
 
-  const downloadTranscription = () => {
-    if (!editedText) return;
-
-    const plainText = editedText.replace(/<[^>]*>/g, '');
-    const blob = new Blob([plainText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'transcricao.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
   };
@@ -114,6 +108,8 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
       </Card>
     );
   }
+
+  const exportTitle = metadata?.title || (transcriptionId ? `Transcrição ${transcriptionId}` : 'Transcrição');
 
   return (
     <Card className={className}>
@@ -152,15 +148,6 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
               <Copy className="w-3 h-3 mr-1" />
               Copiar
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={downloadTranscription}
-              className="h-8"
-            >
-              <Download className="w-3 h-3 mr-1" />
-              Baixar
-            </Button>
           </div>
         </div>
       </CardHeader>
@@ -171,6 +158,7 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
             initialContent={editedText}
             onContentChange={handleContentChange}
             onTimestampClick={onTimestampClick}
+            metadata={metadata}
           />
         ) : (
           <>
@@ -209,10 +197,24 @@ export const TranscriptionText: React.FC<TranscriptionTextProps> = ({
               </p>
             </div>
             
-            <div className="mt-4 pt-4 border-t text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Palavras: {words.length}</span>
-                <span>Tempo estimado: {Math.ceil(words.length / wordsPerSecond / 60)} min</span>
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-muted-foreground">
+                  <div className="flex justify-between gap-4">
+                    <span>Palavras: {words.length}</span>
+                    <span>Tempo estimado: {Math.ceil(words.length / 3 / 60)} min</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Export Options */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Exportar:</span>
+                <ExportButtons
+                  title={exportTitle}
+                  content={editedText}
+                  metadata={metadata}
+                />
               </div>
             </div>
           </>

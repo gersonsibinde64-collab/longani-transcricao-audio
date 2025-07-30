@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -110,6 +111,15 @@ export function TranscricaoDetalhes() {
     );
   }
 
+  // Prepare metadata for export
+  const exportMetadata = {
+    title: transcription.title,
+    duration: transcription.duration_seconds,
+    wordCount: transcription.word_count,
+    accuracy: transcription.accuracy_score,
+    createdAt: formatDate(transcription.created_at)
+  };
+
   return (
     <div className="space-y-standard">
       {/* Header */}
@@ -200,6 +210,7 @@ export function TranscricaoDetalhes() {
         currentTime={currentTime}
         onWordClick={handleWordClick}
         onTimestampClick={handleTimestampClick}
+        metadata={exportMetadata}
       />
     </div>
   );
