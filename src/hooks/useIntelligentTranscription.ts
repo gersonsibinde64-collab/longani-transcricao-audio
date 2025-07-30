@@ -76,12 +76,20 @@ export const useIntelligentTranscription = () => {
       // First, perform the REAL transcription using local Whisper
       const basicResult = await localTranscription.transcribeAudio(file, config);
       
-      console.log('Local Whisper transcription completed:', basicResult.transcribedText);
+      console.log('Local Whisper transcription result:', basicResult);
+      
+      // Check if transcription was successful
+      if (basicResult.status === 'failed') {
+        console.error('Basic transcription failed:', basicResult.errorMessage);
+        return basicResult;
+      }
       
       // If we have transcribed text, process it with AI for structuring
       if (basicResult.transcribedText && basicResult.transcribedText.trim()) {
         try {
           const structuredText = await processWithAI(basicResult.transcribedText);
+          
+          console.log('AI processing completed, returning enhanced result');
           
           // Return enhanced result with AI-structured text
           return {
@@ -102,11 +110,21 @@ export const useIntelligentTranscription = () => {
         }
       }
       
+      console.log('No transcribed text available, returning basic result');
       return basicResult;
       
     } catch (error) {
       console.error('Local transcription error:', error);
-      throw error;
+      
+      // Return a failed result instead of throwing
+      return {
+        title: file.name.split('.')[0],
+        fileName: file.name,
+        fileSize: file.size,
+        language: config.language,
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : 'Erro na transcrição'
+      };
     }
   }, [localTranscription, processWithAI, toast]);
 

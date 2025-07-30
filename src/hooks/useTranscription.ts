@@ -55,6 +55,8 @@ export const useTranscription = () => {
         audioFile,
         config.language,
         (progressInfo) => {
+          console.log('Progress update:', progressInfo);
+          
           if (progressInfo.status === 'loading') {
             setIsModelLoading(true);
             setProgress(progressInfo.progress);
@@ -76,9 +78,13 @@ export const useTranscription = () => {
           } else if (progressInfo.status === 'completed') {
             setProgress(100);
             setInterimTranscript('');
+          } else if (progressInfo.status === 'error') {
+            setError(progressInfo.message);
           }
         }
       );
+
+      console.log('Raw transcription result:', result);
 
       // Update final transcript
       setTranscript(result.text);
@@ -100,7 +106,7 @@ export const useTranscription = () => {
         description: `${result.wordCount} palavras transcritas com ${result.accuracyScore.toFixed(1)}% de precisão`,
       });
 
-      console.log('LOCAL transcription completed:', result);
+      console.log('LOCAL transcription completed successfully:', transcriptionResult);
       return transcriptionResult;
 
     } catch (error) {
@@ -115,7 +121,16 @@ export const useTranscription = () => {
         variant: 'destructive',
       });
       
-      throw error;
+      const failedResult: TranscriptionResult = {
+        title: audioFile.name.split('.')[0],
+        fileName: audioFile.name,
+        fileSize: audioFile.size,
+        language: config.language,
+        status: 'failed',
+        errorMessage: errorMsg
+      };
+      
+      return failedResult;
     } finally {
       setIsTranscribing(false);
       setIsModelLoading(false);

@@ -44,16 +44,35 @@ const Index = () => {
   }, []);
 
   const downloadTranscription = useCallback((text: string, filename: string) => {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename.replace('.md', '.txt'); // Save as plain text for basic transcription
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, []);
+    try {
+      console.log('Starting download for:', filename);
+      console.log('Text length:', text.length);
+      
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace(/\.[^/.]+$/, '') + '_transcricao.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('Download completed successfully');
+      
+      toast({
+        title: 'Download concluído',
+        description: `Ficheiro ${a.download} descarregado com sucesso`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: 'Erro no download',
+        description: 'Não foi possível descarregar o ficheiro',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mpeg', 'audio/ogg'];
@@ -114,21 +133,31 @@ const Index = () => {
   }, [toast, getAudioDuration]);
 
   const processAudioChunks = useCallback(async () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      console.error('No file selected for processing');
+      return;
+    }
 
+    console.log('Starting audio processing for:', selectedFile.name);
     setAppState('processing');
     setTranscriptionResults([]);
     intelligentTranscription.clearTranscript();
 
     try {
       if (needsSplitting) {
+        console.log('Processing large file in chunks...');
+        
         // Split audio into chunks
         const chunks = await splitAudioFile(selectedFile, MAX_AUDIO_DURATION);
         setTotalChunks(chunks.length);
         
-        // Process each chunk sequentially with basic transcription
+        console.log(`File split into ${chunks.length} chunks`);
+        
+        // Process each chunk sequentially
         for (let i = 0; i < chunks.length; i++) {
           setCurrentChunk(i + 1);
+          
+          console.log(`Processing chunk ${i + 1} of ${chunks.length}`);
           
           toast({
             title: `Processando parte ${i + 1} de ${chunks.length}`,
@@ -142,16 +171,28 @@ const Index = () => {
               interimResults: true
             });
 
+            console.log(`Chunk ${i + 1} result:`, result);
+
+            if (result.status === 'failed') {
+              console.error(`Chunk ${i + 1} failed:`, result.errorMessage);
+              toast({
+                title: `Erro na parte ${i + 1}`,
+                description: result.errorMessage || 'Erro na transcrição',
+                variant: 'destructive',
+              });
+              continue;
+            }
+
             const chunkText = result.transcribedText || '';
             setTranscriptionResults(prev => [...prev, chunkText]);
             
-            // Auto-download each chunk as text
-            const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_parte_${i + 1}.txt`;
+            // Auto-download each chunk
+            const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_parte_${i + 1}`;
             downloadTranscription(chunkText, filename);
             
             toast({
               title: `Parte ${i + 1} concluída`,
-              description: `${result.wordCount} palavras transcritas`,
+              description: `${result.wordCount || 0} palavras transcritas`,
             });
             
             // Small delay between chunks
@@ -170,34 +211,61 @@ const Index = () => {
         setAppState('completed');
         
       } else {
-        // Process single file with basic transcription
+        console.log('Processing single file...');
+        
+        // Process single file
         const result = await intelligentTranscription.transcribeAudio(selectedFile, {
           language: language,
           continuous: true,
           interimResults: true
         });
         
+        console.log('Single file processing result:', result);
+        
+        if (result.status === 'failed') {
+          console.error('Single file processing failed:', result.errorMessage);
+          setAppState('error');
+          toast({
+            title: 'Erro na transcrição',
+            description: result.errorMessage || 'Erro na transcrição',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
         const transcriptText = result.transcribedText || '';
+        
+        if (!transcriptText.trim()) {
+          console.error('No text transcribed');
+          setAppState('error');
+          toast({
+            title: 'Erro na transcrição',
+            description: 'Nenhum texto foi transcrito do áudio',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
         setTranscriptionResults([transcriptText]);
         
-        // Auto-download as plain text
-        const filename = `${selectedFile.name.replace(/\.[^/.]+$/, '')}_transcricao.txt`;
+        // Auto-download the transcription
+        const filename = selectedFile.name.replace(/\.[^/.]+$/, '') + '_transcricao';
         downloadTranscription(transcriptText, filename);
         
         setAppState('completed');
         
         toast({
           title: 'Transcrição concluída',
-          description: `${result.wordCount} palavras transcritas e descarregadas`,
+          description: `${result.wordCount || 0} palavras transcritas e descarregadas`,
         });
       }
       
     } catch (error) {
-      console.error('Transcription error:', error);
+      console.error('Processing error:', error);
       setAppState('error');
       toast({
         title: 'Erro na transcrição',
-        description: 'Ocorreu um erro durante a transcrição. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Erro desconhecido durante a transcrição',
         variant: 'destructive',
       });
     }
