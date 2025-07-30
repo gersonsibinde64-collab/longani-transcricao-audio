@@ -396,7 +396,6 @@ const Index = () => {
 
               <TranscriptionQuality 
                 accuracy={intelligentTranscription.processingQuality}
-                className="mt-4"
               />
             </div>
           )}
