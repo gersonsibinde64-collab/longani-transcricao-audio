@@ -129,15 +129,15 @@ export const AudioProcessor: React.FC = () => {
       cleanup();
 
       // Navigate to the transcription details page
-      if (result.id) {
-        toast({
-          title: 'Transcrição concluída',
-          description: 'Redirecionando para visualizar o resultado...',
-        });
-        setTimeout(() => {
-          navigate(`/transcricoes/${result.id}`);
-        }, 1000);
-      }
+      
+      toast({
+        title: 'Transcrição concluída',
+        description: 'Redirecionando para visualizar o resultado...',
+      });
+      setTimeout(() => {
+        navigate(`/transcricoes/${result.id}`);
+      }, 1000);
+      
 
     } catch (error) {
       console.error('Error processing audio:', error);
