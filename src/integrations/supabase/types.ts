@@ -41,6 +41,7 @@ export type Database = {
       transcriptions: {
         Row: {
           accuracy_score: number | null
+          audio_file_url: string | null
           created_at: string
           duration_seconds: number | null
           error_message: string | null
@@ -57,6 +58,7 @@ export type Database = {
         }
         Insert: {
           accuracy_score?: number | null
+          audio_file_url?: string | null
           created_at?: string
           duration_seconds?: number | null
           error_message?: string | null
@@ -73,6 +75,7 @@ export type Database = {
         }
         Update: {
           accuracy_score?: number | null
+          audio_file_url?: string | null
           created_at?: string
           duration_seconds?: number | null
           error_message?: string | null

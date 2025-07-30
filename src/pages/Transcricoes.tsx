@@ -13,10 +13,12 @@ import { TranscriptionService } from '@/utils/transcriptionService';
 import { useToast } from '@/hooks/use-toast';
 import { AudioProcessor } from '@/components/AudioProcessor';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function Transcricoes() {
   const [showProcessor, setShowProcessor] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { data: transcriptions = [], isLoading, refetch } = useQuery({
     queryKey: ['transcriptions'],
@@ -38,6 +40,10 @@ export function Transcricoes() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleView = (id: string) => {
+    navigate(`/transcricoes/${id}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -174,7 +180,10 @@ export function Transcricoes() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-white card-shadow">
-                      <DropdownMenuItem className="font-light hover-light-blue">
+                      <DropdownMenuItem 
+                        className="font-light hover-light-blue"
+                        onClick={() => handleView(transcription.id)}
+                      >
                         <Play className="w-4 h-4 mr-2" strokeWidth={1} />
                         Visualizar
                       </DropdownMenuItem>
@@ -218,7 +227,12 @@ export function Transcricoes() {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="font-light hover-light-blue focus-blue">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="font-light hover-light-blue focus-blue"
+                      onClick={() => handleView(transcription.id)}
+                    >
                       <Play className="w-4 h-4 mr-2" strokeWidth={1} />
                       Visualizar
                     </Button>

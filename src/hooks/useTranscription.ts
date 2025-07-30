@@ -21,6 +21,7 @@ export interface TranscriptionResult {
   wordCount?: number;
   durationSeconds?: number;
   errorMessage?: string;
+  audioFileUrl?: string;
 }
 
 export const useTranscription = () => {
@@ -50,7 +51,8 @@ export const useTranscription = () => {
         file_name: data.fileName || 'audio.wav',
         file_size: data.fileSize || 0,
         language: data.language || 'pt-BR',
-        status: data.status || 'processing'
+        status: data.status || 'processing',
+        audio_file_url: data.audioFileUrl
       })
       .select()
       .single();
@@ -72,6 +74,7 @@ export const useTranscription = () => {
     if (updates.wordCount) dbUpdates.word_count = updates.wordCount;
     if (updates.durationSeconds) dbUpdates.duration_seconds = updates.durationSeconds;
     if (updates.errorMessage) dbUpdates.error_message = updates.errorMessage;
+    if (updates.audioFileUrl) dbUpdates.audio_file_url = updates.audioFileUrl;
 
     const { error } = await supabase
       .from('transcriptions')
@@ -85,7 +88,8 @@ export const useTranscription = () => {
 
   const transcribeAudio = useCallback(async (
     audioFile: File, 
-    config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true }
+    config: TranscriptionConfig = { language: 'pt-BR', continuous: true, interimResults: true },
+    audioFileUrl?: string
   ): Promise<TranscriptionResult> => {
     if (!isWebSpeechSupported()) {
       throw new Error('Web Speech API não é suportada neste navegador');
@@ -104,7 +108,8 @@ export const useTranscription = () => {
         fileName: audioFile.name,
         fileSize: audioFile.size,
         language: config.language,
-        status: 'processing'
+        status: 'processing',
+        audioFileUrl: audioFileUrl
       });
 
       // Create audio element and URL
@@ -190,7 +195,8 @@ export const useTranscription = () => {
             transcribedText: finalTranscript,
             accuracyScore: parseFloat(accuracyScore.toFixed(2)),
             wordCount,
-            durationSeconds: Math.floor(duration)
+            durationSeconds: Math.floor(duration),
+            audioFileUrl: audioFileUrl
           };
 
           try {
@@ -199,7 +205,8 @@ export const useTranscription = () => {
               transcribedText: finalTranscript,
               accuracyScore: result.accuracyScore,
               wordCount: wordCount,
-              durationSeconds: Math.floor(duration)
+              durationSeconds: Math.floor(duration),
+              audioFileUrl: audioFileUrl
             });
 
             toast({

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, Play, Square, FileAudio, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranscription } from '@/hooks/useTranscription';
+import { supabase } from '@/integrations/supabase/client';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
@@ -21,6 +22,8 @@ export const AudioProcessor: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
   const [title, setTitle] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   
   const {
     isTranscribing,
@@ -41,15 +44,55 @@ export const AudioProcessor: React.FC = () => {
     }
   };
 
+  const uploadAudioFile = async (file: File): Promise<string> => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('audio-files')
+        .upload(fileName, file, {
+          onUploadProgress: (progress) => {
+            setUploadProgress((progress.loaded / progress.total) * 100);
+          }
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio-files')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleStartTranscription = async () => {
     if (!selectedFile) return;
 
     try {
+      // Upload audio file to storage
+      const audioUrl = await uploadAudioFile(selectedFile);
+      
+      // Start transcription with audio URL
       await transcribeAudio(selectedFile, {
         language: selectedLanguage,
         continuous: true,
         interimResults: true
-      });
+      }, audioUrl);
     } catch (err) {
       console.error('Erro na transcrição:', err);
     }
@@ -96,7 +139,7 @@ export const AudioProcessor: React.FC = () => {
                 type="file"
                 accept="audio/*"
                 onChange={handleFileSelect}
-                disabled={isTranscribing}
+                disabled={isTranscribing || isUploading}
                 className="flex-1"
               />
               {selectedFile && (
@@ -114,7 +157,7 @@ export const AudioProcessor: React.FC = () => {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              disabled={isTranscribing}
+              disabled={isTranscribing || isUploading}
               placeholder="Digite um título para sua transcrição"
             />
           </div>
@@ -122,7 +165,7 @@ export const AudioProcessor: React.FC = () => {
           {/* Language Selection */}
           <div className="space-y-2">
             <Label>Idioma</Label>
-            <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={isTranscribing}>
+            <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={isTranscribing || isUploading}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -143,15 +186,17 @@ export const AudioProcessor: React.FC = () => {
           <div className="flex gap-2">
             <Button
               onClick={handleStartTranscription}
-              disabled={!selectedFile || isTranscribing}
+              disabled={!selectedFile || isTranscribing || isUploading}
               className="flex items-center gap-2"
             >
-              {isTranscribing ? (
+              {isUploading ? (
+                <Upload className="w-4 h-4" />
+              ) : isTranscribing ? (
                 <Square className="w-4 h-4" />
               ) : (
                 <Play className="w-4 h-4" />
               )}
-              {isTranscribing ? 'Processando...' : 'Iniciar Transcrição'}
+              {isUploading ? 'Enviando...' : isTranscribing ? 'Processando...' : 'Iniciar Transcrição'}
             </Button>
             
             {isTranscribing && (
@@ -166,11 +211,22 @@ export const AudioProcessor: React.FC = () => {
             )}
           </div>
 
-          {/* Progress Bar */}
+          {/* Upload Progress Bar */}
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Enviando arquivo</span>
+                <span>{uploadProgress.toFixed(0)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="w-full" />
+            </div>
+          )}
+
+          {/* Transcription Progress Bar */}
           {isTranscribing && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Progresso</span>
+                <span>Progresso da transcrição</span>
                 <span>{progress.toFixed(0)}%</span>
               </div>
               <Progress value={progress} className="w-full" />
