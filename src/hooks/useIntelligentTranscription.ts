@@ -4,8 +4,6 @@ import { useTranscription, TranscriptionResult, TranscriptionConfig } from './us
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const MAX_BROWSER_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit for browser processing
-
 export const useIntelligentTranscription = () => {
   const [isProcessingWithAI, setIsProcessingWithAI] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
@@ -17,6 +15,8 @@ export const useIntelligentTranscription = () => {
     setAiProgress(0);
 
     try {
+      console.log('Starting AI processing for transcript:', transcript.substring(0, 100) + '...');
+      
       toast({
         title: 'Processamento com IA',
         description: 'Estruturando texto com inteligência artificial...',
@@ -30,20 +30,27 @@ export const useIntelligentTranscription = () => {
       });
 
       if (error) {
+        console.error('AI processing error:', error);
         throw new Error(`Erro no processamento IA: ${error.message}`);
       }
 
       setAiProgress(90);
 
+      console.log('AI processing response:', data);
+
       if (!data?.structuredText) {
         throw new Error('Resposta inválida do processamento IA');
+      }
+
+      if (!data.aiProcessed) {
+        console.warn('AI processing may not have completed successfully');
       }
 
       setAiProgress(100);
 
       toast({
         title: 'Processamento IA concluído',
-        description: 'Texto estruturado com sucesso pela inteligência artificial',
+        description: `Texto estruturado com sucesso (${data.aiProcessed ? 'com IA' : 'básico'})`,
       });
 
       return data.structuredText;
@@ -68,8 +75,12 @@ export const useIntelligentTranscription = () => {
   ): Promise<TranscriptionResult> => {
     
     try {
-      // First, perform the basic transcription
+      console.log('Starting intelligent transcription for:', file.name);
+      
+      // First, perform the REAL transcription using Web Speech API
       const basicResult = await browserTranscription.transcribeAudio(file, config);
+      
+      console.log('Basic transcription completed:', basicResult.transcribedText);
       
       // If we have transcribed text, process it with AI for structuring
       if (basicResult.transcribedText && basicResult.transcribedText.trim()) {
@@ -88,7 +99,7 @@ export const useIntelligentTranscription = () => {
           // If AI processing fails, return the basic transcription
           toast({
             title: 'Usando transcrição básica',
-            description: 'Processamento IA falhou, mas transcrição básica está disponível',
+            description: 'Processamento IA falhou, mas transcrição real está disponível',
           });
           
           return basicResult;
