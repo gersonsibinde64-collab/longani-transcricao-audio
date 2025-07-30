@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Play, MoreVertical, Plus } from "lucide-react";
+import { FileText, Download, Play, MoreVertical, Plus, XCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,

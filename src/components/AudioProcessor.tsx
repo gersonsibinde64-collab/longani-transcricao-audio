@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,10 +70,12 @@ export const AudioProcessor: React.FC = () => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
     if (file) {
-      const fakeEvent = {
-        target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>;
-      handleFileSelect(fakeEvent);
+      // Create a proper ChangeEvent-like object
+      const syntheticEvent = {
+        target: { files: [file] },
+        currentTarget: { files: [file] }
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      handleFileSelect(syntheticEvent);
     }
   }, [handleFileSelect]);
 
