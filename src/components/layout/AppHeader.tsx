@@ -14,56 +14,56 @@ import {
 
 export function AppHeader() {
   return (
-    <header className="h-16 border-b border-border bg-white px-8 flex items-center justify-between">
+    <header className="h-16 border-0 bg-white px-8 flex items-center justify-between shadow-sm">
       {/* Search */}
       <div className="flex-1 max-w-md">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" strokeWidth={1.5} />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" strokeWidth={1} />
           <Input
             type="text"
             placeholder="Pesquisar transcrições..."
-            className="pl-10 pr-4 h-10 bg-white border border-input focus-visible:ring-1 focus-visible:ring-primary font-light"
+            className="pl-12 pr-4 h-12 bg-white border border-gray-200 rounded-lg focus-visible:ring-1 focus-visible:ring-blue-500 font-light text-gray-700"
           />
         </div>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <Bell className="w-4 h-4" strokeWidth={1.5} />
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full"></span>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="relative h-10 w-10 hover:bg-gray-50">
+          <Bell className="w-4 h-4 text-gray-600" strokeWidth={1} />
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
         </Button>
 
-        <Button variant="ghost" size="icon" className="h-9 w-9">
-          <Settings className="w-4 h-4" strokeWidth={1.5} />
+        <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-gray-50">
+          <Settings className="w-4 h-4 text-gray-600" strokeWidth={1} />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full ml-2">
-              <Avatar className="h-8 w-8">
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full ml-3 hover:bg-gray-50">
+              <Avatar className="h-9 w-9">
                 <AvatarImage src="/placeholder.svg" alt="Usuário" />
-                <AvatarFallback className="bg-primary text-primary-foreground font-light text-xs">
+                <AvatarFallback className="bg-blue-600 text-white font-light text-xs">
                   JD
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 bg-white shadow-card-lg" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-white shadow-lg border border-gray-200" align="end" forceMount>
             <DropdownMenuLabel className="font-light">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-normal leading-none">João Silva</p>
-                <p className="text-xs leading-none text-muted-foreground font-light">
+                <p className="text-sm font-normal leading-none text-gray-800">João Silva</p>
+                <p className="text-xs leading-none text-gray-500 font-light">
                   joao@exemplo.com
                 </p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="font-light">Perfil</DropdownMenuItem>
-            <DropdownMenuItem className="font-light">Configurações</DropdownMenuItem>
-            <DropdownMenuItem className="font-light">Ajuda</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive font-light">
+            <DropdownMenuSeparator className="bg-gray-200" />
+            <DropdownMenuItem className="font-light text-gray-700 hover:bg-gray-50">Perfil</DropdownMenuItem>
+            <DropdownMenuItem className="font-light text-gray-700 hover:bg-gray-50">Configurações</DropdownMenuItem>
+            <DropdownMenuItem className="font-light text-gray-700 hover:bg-gray-50">Ajuda</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-gray-200" />
+            <DropdownMenuItem className="text-red-600 font-light hover:bg-red-50">
               Sair
             </DropdownMenuItem>
           </DropdownMenuContent>

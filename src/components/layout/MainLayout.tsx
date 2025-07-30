@@ -17,8 +17,10 @@ export function MainLayout({ children }: MainLayoutProps) {
         <div className="flex-1 flex flex-col">
           <AppHeader />
           
-          <main className="flex-1 p-8 bg-white">
-            {children}
+          <main className="flex-1 p-12 bg-white">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
           </main>
         </div>
       </div>
